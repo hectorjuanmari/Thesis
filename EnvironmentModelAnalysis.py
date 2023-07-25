@@ -161,8 +161,8 @@ trajectory_parameters = [7454.4212962963,
                          -2806.92]
 
 # Choose whether benchmark is run
-use_benchmark = 0
-run_environment_analysis = 0
+use_benchmark = True
+run_environment_analysis = True
 
 # Choose whether output of the propagation is written to files
 write_results_to_file = True
@@ -180,7 +180,7 @@ specific_impulse = 2500
 minimum_mars_distance = 5.0E7
 # Time since 'departure from Earth CoM' at which propagation starts (and similar
 # for arrival time)
-time_buffer = 40.0 * constants.JULIAN_DAY
+time_buffer = 30.0 * constants.JULIAN_DAY
 # Time at which to start propagation
 initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters,
                                                             time_buffer)
@@ -320,7 +320,8 @@ if run_environment_analysis:
             termination_settings,
             dependent_variables_to_save,
             current_propagator=propagation_setup.propagator.cowell,
-            model_choice=model_test)
+            model_choice=model_test,
+            vinf=[[4000], [0], [0]])
 
         propagator_settings.integrator_settings = Util.get_integrator_settings(
             0, 7, 1, initial_propagation_time)
@@ -386,11 +387,16 @@ if run_environment_analysis:
         interpolation_epochs = [n for n in unfiltered_interpolation_epochs if n >= interpolation_lower_limit]
 
         nominal = 0
-        if model_test == 11: nominal = 3
-        elif model_test == 12: nominal = 4
-        elif model_test == 13: nominal = 9
-        elif model_test == 15: nominal = 3
-        elif model_test == 16: nominal = 4
+        if model_test == 11:
+            nominal = 3
+        elif model_test == 12:
+            nominal = 4
+        elif model_test == 13:
+            nominal = 9
+        elif model_test == 15:
+            nominal = 3
+        elif model_test == 16:
+            nominal = 4
         # elif model_test == 17: nominal = 1
         # elif model_test == 18: nominal = 2
         # elif model_test == 19: nominal = 3
@@ -433,21 +439,23 @@ number_of_models = 16
 
 states_nominal = np.loadtxt("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/NominalCase/state_history.dat")
 
-dependent_variables_case3 = np.loadtxt("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Model_3/dependent_variable_history.dat")
+states_case3 = np.loadtxt("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Model_3/state_history.dat")
+dependent_variables_case3 = np.loadtxt(
+    "C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Model_3/dependent_variable_history.dat")
 
-
-
-states_base = np.loadtxt("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Model_1/state_difference_wrt_nominal_case.dat")
+states_base = np.loadtxt(
+    "C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Model_1/state_difference_wrt_nominal_case.dat")
 
 states = np.zeros((np.append(states_base.shape, [number_of_models])))
 
 for i in range(number_of_models):
-    states[:, :, i] = np.loadtxt("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Model_" + str(i + 1) + "/state_difference_wrt_nominal_case.dat")
+    states[:, :, i] = np.loadtxt("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Model_" + str(
+        i + 1) + "/state_difference_wrt_nominal_case.dat")
 
 time = states[:, 0, 0]
 time_days = (time - states_nominal[0, 0]) / constants.JULIAN_DAY
 
-sc_dist = dependent_variables_case3[:,1]
+sc_dist = np.linalg.norm(dependent_variables_case3[:, 4:7] - states_case3[:, 1:4], axis=1)
 
 print('Initial distance to Earth is', sc_dist[0], 'm')
 
@@ -461,8 +469,10 @@ plt.ylabel('SC distance to Mars [m]')
 plt.grid(True)
 plt.tight_layout()
 
-sc_thrust = dependent_variables_case3[:,11]
-sc_acceleration = np.linalg.norm(dependent_variables_case3[:,12:15] - dependent_variables_case3[:,15:18] - dependent_variables_case3[:,18:21],axis=1)
+sc_thrust = dependent_variables_case3[:, 11]
+sc_acceleration = np.linalg.norm(
+    dependent_variables_case3[:, 12:15] - dependent_variables_case3[:, 15:18] - dependent_variables_case3[:, 18:21],
+    axis=1)
 
 plt.figure(figsize=(width, height))
 

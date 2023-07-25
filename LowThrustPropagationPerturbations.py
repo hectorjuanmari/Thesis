@@ -174,7 +174,7 @@ specific_impulse = 2500
 minimum_mars_distance = 5.0E7
 # Time since 'departure from Earth CoM' at which propagation starts (and similar
 # for arrival time)
-time_buffer = 0.0 * constants.JULIAN_DAY
+time_buffer = 20.0 * constants.JULIAN_DAY
 # Time at which to start propagation
 initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters,
                                                             time_buffer)
@@ -257,12 +257,12 @@ if use_benchmark:
         termination_settings,
         dependent_variables_to_save,
         current_propagator=propagation_setup.propagator.cowell,
-        model_choice=0)
+        model_choice=17)
 
     benchmark_output_path = current_dir + '/SimulationOutput/benchmarks/' if write_results_to_file else None
 
     # Generate benchmarks
-    benchmark_step_size = 86400.0*2
+    benchmark_step_size = 86400.0
     benchmark_list = Util.generate_benchmarks(benchmark_step_size,
                                               initial_propagation_time,
                                               bodies,
@@ -316,9 +316,7 @@ hodographic_state_history = Util.get_hodographic_trajectory(hodographic_shaping_
                                 output_path)
 
 hodographic_state_history_list = result2array(hodographic_state_history)
-print(hodographic_state_history_list[0,:])
 first_benchmark_state_history_list = result2array(first_benchmark_state_history)
-print(first_benchmark_state_history_list[0,:])
 second_benchmark_state_history_list = result2array(second_benchmark_state_history)
 benchmark_state_difference_list = result2array(benchmark_state_difference)
 dependent_var = result2array(first_benchmark_dependent_variable_history)
@@ -339,54 +337,12 @@ width = fig_width_pt * inches_per_pt
 
 height = width * golden_ratio
 
-# Retrieve the Earth trajectory over vehicle propagation epochs from spice
-earth_states_from_spice = {
-    epoch:bodies.get_body('Earth').state_in_base_frame_from_ephemeris(epoch)
-    for epoch in list(first_benchmark_state_history.keys())
-}
-# Convert the dictionary to a multi-dimensional array
-earth_array = result2array(earth_states_from_spice)
-
-# Retrieve the Mars trajectory over vehicle propagation epochs from spice
-mars_states_from_spice = {
-    epoch:bodies.get_body('Mars').state_in_base_frame_from_ephemeris(epoch)
-    for epoch in list(first_benchmark_state_history.keys())
-}
-# Convert the dictionary to a multi-dimensional array
-mars_array = result2array(mars_states_from_spice)
-
-print(earth_array[0,:])
-
-initial_dist = np.linalg.norm(first_benchmark_state_history_list[0,1:4]-earth_array[0,1:4])
-
-print("The initial distance to Earth with Earth states from spice is", initial_dist, "m")
-
-final_dist = np.linalg.norm(first_benchmark_state_history_list[-1,1:4]-mars_array[-1,1:4])
-
-print("The final distance to Mars with Mars states from spice is", final_dist, "m")
-
 plt.figure(figsize=(width, height))
 ax = plt.axes(projection='3d')
 
-ax.plot3D(dependent_var[:,4], dependent_var[:,5], dependent_var[:,6], label='Earth from dependent variables', linewidth=0.8, color='tab:green')
-ax.plot3D(earth_array[:,1], earth_array[:,2], earth_array[:,3], label='Earth from spice', linewidth=0.8, color='tab:red')
-
-ax.set_xlabel('x [m]')
-ax.xaxis.labelpad = 20
-ax.set_ylabel('y [m]')
-ax.yaxis.labelpad = 20
-ax.set_zlabel('z [m]')
-ax.zaxis.labelpad = 20
-ax.legend(fontsize='small')
-plt.grid(True)
-
-plt.figure(figsize=(width, height))
-ax = plt.axes(projection='3d')
-
-# ax.plot3D(hodographic_state_history_list[:,1], hodographic_state_history_list[:,2], hodographic_state_history_list[:,3], label='Vehicle', linewidth=1.5, color='tab:red')
+ax.plot3D(hodographic_state_history_list[:,1], hodographic_state_history_list[:,2], hodographic_state_history_list[:,3], label='Vehicle', linewidth=1.5, color='tab:red')
 ax.plot3D(first_benchmark_state_history_list[:,1], first_benchmark_state_history_list[:,2], first_benchmark_state_history_list[:,3], label='Vehicle', linewidth=1.5, color='tab:blue')
 ax.plot3D(dependent_var[:,4], dependent_var[:,5], dependent_var[:,6], label='Earth', linewidth=0.8, color='tab:green')
-ax.plot3D(earth_array[:,1], earth_array[:,2], earth_array[:,3], label='Earth', linewidth=0.8, color='tab:red')
 ax.plot3D(dependent_var[:,7], dependent_var[:,8], dependent_var[:,9], label='Mars', linewidth=0.8, color='tab:orange')
 
 ax.set_xlabel('x [m]')
@@ -398,39 +354,13 @@ ax.zaxis.labelpad = 20
 ax.legend(fontsize='small')
 plt.grid(True)
 
-hodographic_interpolator = interpolators.create_one_dimensional_vector_interpolator(first_benchmark_state_history,
-                                                                                  interpolators.lagrange_interpolation(
-                                                                                      8))
-# propagation_difference = dict()
-# for epoch in hodographic_state_history.keys():
-#     propagation_difference[epoch] = hodographic_interpolator.interpolate(epoch)[:6] - hodographic_state_history[epoch]
-#
-# propagation_difference_list = result2array(propagation_difference)
-#
-# plt.figure(figsize=(width, height))
-#
-# benchmark_state_difference_norm = np.linalg.norm(propagation_difference_list[:,1:4],axis=1)
-#
-# plt.plot((propagation_difference_list[500:-500,0]-propagation_difference_list[0,0]) / constants.JULIAN_DAY, benchmark_state_difference_norm[500:-500])
-#
-# plt.xlabel('Time')
-# plt.ylabel('Benchmark difference [m]')
-# plt.grid(True)
-# plt.tight_layout()
+sc_dist_earth = np.linalg.norm(dependent_var[:,4:7] - first_benchmark_state_history_list[:,1:4], axis=1)
 
-sc_dist_earth = dependent_var[:,1]
+print('The initial distance to Earth is', (sc_dist_earth[0]), 'm')
 
-print(dependent_var[0,4:7])
+sc_dist_mars = np.linalg.norm(dependent_var[:,7:10] - first_benchmark_state_history_list[:,1:4], axis=1)
 
-print('The initial distance to Earth with Earth states from dependent variables is', sc_dist_earth[0], 'm')
-
-sc_dist_earth_2 = dependent_var[:,4:7] - first_benchmark_state_history_list[:,1:4]
-
-print('The initial distance to Earth with Earth states calculated from dependent variables is', np.linalg.norm(sc_dist_earth_2[0]), 'm')
-
-sc_dist_mars = dependent_var[:,3]
-
-print('The final distance to Mars with Mars states from dependent variables is', sc_dist_mars[-1], 'm')
+print('The final distance to Mars with Mars states from dependent variables is', (sc_dist_mars[-1]), 'm')
 
 plt.figure(figsize=(width, height))
 

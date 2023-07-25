@@ -1,4 +1,3 @@
-
 ###########################################################################
 # IMPORT STATEMENTS #######################################################
 ###########################################################################
@@ -103,15 +102,15 @@ def get_dependent_variable_save_settings() -> list:
                                    propagation_setup.dependent_variable.relative_distance('Vehicle', 'Sun'),
                                    propagation_setup.dependent_variable.relative_distance('Vehicle', 'Mars'),
                                    propagation_setup.dependent_variable.relative_position("Earth", "SSB"),
-                                   propagation_setup.dependent_variable.relative_position("Mars", "Sun"),
+                                   propagation_setup.dependent_variable.relative_position("Mars", "SSB"),
                                    propagation_setup.dependent_variable.body_mass("Vehicle"),
                                    propagation_setup.dependent_variable.single_acceleration_norm(
-                                        propagation_setup.acceleration.thrust_acceleration_type,'Vehicle','Vehicle'),
+                                       propagation_setup.acceleration.thrust_acceleration_type, 'Vehicle', 'Vehicle'),
                                    propagation_setup.dependent_variable.total_acceleration("Vehicle"),
                                    propagation_setup.dependent_variable.single_acceleration(
                                        propagation_setup.acceleration.point_mass_gravity_type, 'Vehicle', 'Sun'),
                                    propagation_setup.dependent_variable.single_acceleration(
-                                        propagation_setup.acceleration.thrust_acceleration_type,'Vehicle','Vehicle')
+                                       propagation_setup.acceleration.thrust_acceleration_type, 'Vehicle', 'Vehicle')
                                    ]
 
     return dependent_variables_to_save
@@ -163,15 +162,15 @@ def get_integrator_settings(propagator_index: int,
                                propagation_setup.integrator.CoefficientSets.rkf_56,
                                propagation_setup.integrator.CoefficientSets.rkf_78,
                                propagation_setup.integrator.CoefficientSets.rkdp_87]
-    tolerance_1 = [10**-15, 10**-14, 10**-13, 10**-12, 10**-11]
-    tolerance_2 = [10**-14, 10**-13, 10**-12, 10**-11, 10**-10]
+    tolerance_1 = [10 ** -15, 10 ** -14, 10 ** -13, 10 ** -12, 10 ** -11]
+    tolerance_2 = [10 ** -14, 10 ** -13, 10 ** -12, 10 ** -11, 10 ** -10]
     # Use variable step-size integrator
     if integrator_index < 4:
         # Select variable-step integrator
         current_coefficient_set = multi_stage_integrators[integrator_index]
         # Compute current tolerance
         current_tolerance = tolerance_1[settings_index]
-        if integrator_index==3: current_tolerance = tolerance_2[settings_index]
+        if integrator_index == 3: current_tolerance = tolerance_2[settings_index]
         # Create integrator settings
         integrator = propagation_setup.integrator
         # Here (epsilon, inf) are set as respectively min and max step sizes
@@ -187,7 +186,7 @@ def get_integrator_settings(propagator_index: int,
     elif integrator_index >= 4 and integrator_index < 8:
         # Compute time step
         fixed_step_size = 7200 * 2.0 ** (settings_index)
-        if integrator_index > 5: fixed_step_size = 7200 * 2.0 ** (settings_index+3)
+        if integrator_index > 5: fixed_step_size = 7200 * 2.0 ** (settings_index + 3)
         # Select variable-step integrator
         current_coefficient_set = multi_stage_integrators[integrator_index - 4]
         # Create integrator settings
@@ -269,14 +268,16 @@ def get_integrator_settings(propagator_index: int,
     #                                                     current_tolerance)
     return integrator_settings
 
-def get_propagator_settings( trajectory_parameters,
-                             bodies,
-                             initial_propagation_time,
-                             vehicle_initial_mass,
-                             termination_settings,
-                             dependent_variables_to_save,
-                             current_propagator = propagation_setup.propagator.cowell,
-                             model_choice = 0):
+
+def get_propagator_settings(trajectory_parameters,
+                            bodies,
+                            initial_propagation_time,
+                            vehicle_initial_mass,
+                            termination_settings,
+                            dependent_variables_to_save,
+                            current_propagator=propagation_setup.propagator.cowell,
+                            model_choice=0,
+                            vinf=np.zeros([3, 1])):
     """
     Creates the propagator settings.
 
@@ -312,9 +313,9 @@ def get_propagator_settings( trajectory_parameters,
 
     # Define bodies that are propagated and their central bodies of propagation
     bodies_to_propagate = ['Vehicle']
-    central_bodies = ['SSB']
+    central_bodies = ['Sun']
     # Update vehicle rotation model and thrust magnitude model
-    transfer_trajectory = set_hodograph_thrust_model(trajectory_parameters, bodies)
+    transfer_trajectory = set_hodograph_thrust_model(trajectory_parameters, bodies, vinf)
     # Define accelerations acting on capsule
     acceleration_settings_on_vehicle = {
         'Sun': [propagation_setup.acceleration.point_mass_gravity()],
@@ -523,7 +524,7 @@ def get_propagator_settings( trajectory_parameters,
         central_bodies)
 
     # Retrieve initial state
-    initial_state = transfer_trajectory.legs[ 0 ].state_along_trajectory( initial_propagation_time )
+    initial_state = transfer_trajectory.legs[0].state_along_trajectory(initial_propagation_time)
 
     # Create propagation settings for the translational dynamics
     translational_propagator_settings = propagation_setup.propagator.translational(
@@ -563,7 +564,6 @@ def get_propagator_settings( trajectory_parameters,
                                                                  dependent_variables_to_save)
 
     return propagator_settings
-
 
 
 ###########################################################################
@@ -607,8 +607,9 @@ def get_trajectory_initial_time(trajectory_parameters: list,
     """
     return trajectory_parameters[0] * constants.JULIAN_DAY + buffer_time
 
+
 def get_hodographic_trajectory(shaping_object: tudatpy.kernel.trajectory_design.transfer_trajectory.TransferTrajectory,
-                               output_path: str ):
+                               output_path: str):
     """
     It computes the analytical hodographic trajectory and saves the results to a file
     This function analytically calculates the hodographic trajectory from the Hodographic Shaping object.
@@ -631,9 +632,10 @@ def get_hodographic_trajectory(shaping_object: tudatpy.kernel.trajectory_design.
     trajectory_shape = shaping_object.states_along_trajectory(number_of_data_points)
     # If desired, save results to files
     save2txt(trajectory_shape,
-                 'hodographic_trajectory.dat',
-                 output_path)
+             'hodographic_trajectory.dat',
+             output_path)
     return trajectory_shape
+
 
 def get_trajectory_final_time(trajectory_parameters: list,
                               buffer_time: float = 0.0) -> float:
@@ -794,7 +796,7 @@ def get_axial_velocity_shaping_functions(trajectory_parameters: list,
 
 def create_hodographic_trajectory(trajectory_parameters: list,
                                   bodies: tudatpy.kernel.numerical_simulation.environment.SystemOfBodies,
-                                  vinf = np.zeros([3, 1])) \
+                                  vinf=np.zeros([3, 1])) \
         -> tudatpy.kernel.trajectory_design.transfer_trajectory.TransferTrajectory:
     """
     It creates and returns the hodographic shaping object, based on the trajectory parameters.
@@ -844,34 +846,35 @@ def create_hodographic_trajectory(trajectory_parameters: list,
     hodographic_leg_settings = transfer_trajectory.hodographic_shaping_leg(
         radial_velocity_shaping_functions,
         normal_velocity_shaping_functions,
-        axial_velocity_shaping_functions )
+        axial_velocity_shaping_functions)
     node_settings = list()
-    node_settings.append( transfer_trajectory.departure_node( np.inf, 0.99 ) )
-    node_settings.append( transfer_trajectory.capture_node( 29e6, 0.99 ) )
+    node_settings.append(transfer_trajectory.departure_node(np.inf, 0.99))
+    node_settings.append(transfer_trajectory.capture_node(29e6, 0.99))
 
     # Create and return transfer trajectory
     trajectory_object = transfer_trajectory.create_transfer_trajectory(
-        bodies, [hodographic_leg_settings], node_settings, ['Earth','Mars'],'Sun' )
+        bodies, [hodographic_leg_settings], node_settings, ['Earth', 'Mars'], 'Sun')
 
     # Extract node times
-    node_times = list( )
-    node_times.append( get_trajectory_initial_time( trajectory_parameters ) )
-    node_times.append( get_trajectory_final_time( trajectory_parameters ) )
+    node_times = list()
+    node_times.append(get_trajectory_initial_time(trajectory_parameters))
+    node_times.append(get_trajectory_final_time(trajectory_parameters))
 
-    #transfer_trajectory.print_parameter_definitions( [hodographic_leg_settings], node_settings )
+    # transfer_trajectory.print_parameter_definitions( [hodographic_leg_settings], node_settings )
     hodograph_free_parameters = trajectory_parameters[2:9]
 
     node_parameters = list()
-    node_parameters.append([[4000], [0], [0]])
+    node_parameters.append(vinf)
     node_parameters.append(np.zeros([3, 1]))
 
     # Update trajectory to given times, node settings, and hodograph parameters
-    trajectory_object.evaluate( node_times, [hodograph_free_parameters], node_parameters )
+    trajectory_object.evaluate(node_times, [hodograph_free_parameters], node_parameters)
     return trajectory_object
 
 
 def set_hodograph_thrust_model(trajectory_parameters: list,
-                               bodies: tudatpy.kernel.numerical_simulation.environment.SystemOfBodies):
+                               bodies: tudatpy.kernel.numerical_simulation.environment.SystemOfBodies,
+                               vinf=np.zeros([3, 1])):
     """
     It extracts the acceleration settings resulting from the hodographic trajectory and returns the equivalent thrust
     acceleration settings object. In addition, it returns teh transfer trajectory object for later use in the code
@@ -888,11 +891,12 @@ def set_hodograph_thrust_model(trajectory_parameters: list,
     None
     """
     # Create shaping object
-    trajectory_object = create_hodographic_trajectory(trajectory_parameters, bodies)
-    transfer_trajectory.set_low_thrust_acceleration( trajectory_object.legs[ 0 ], bodies, 'Vehicle', 'LowThrustEngine' )
+    trajectory_object = create_hodographic_trajectory(trajectory_parameters, bodies, vinf)
+    transfer_trajectory.set_low_thrust_acceleration(trajectory_object.legs[0], bodies, 'Vehicle', 'LowThrustEngine')
 
     # Return trajectory object
     return trajectory_object
+
 
 ###########################################################################
 # BENCHMARK UTILITIES #####################################################
@@ -962,7 +966,7 @@ def generate_benchmarks(benchmark_step_size: float,
     print('Running first benchmark...')
     first_dynamics_simulator = numerical_simulation.create_dynamics_simulator(
         bodies,
-        benchmark_propagator_settings )
+        benchmark_propagator_settings)
 
     # Create integrator settings for the second benchmark in the same way
     benchmark_integrator_settings = propagation_setup.integrator.runge_kutta_variable_step_size(
@@ -977,7 +981,7 @@ def generate_benchmarks(benchmark_step_size: float,
     print('Running second benchmark...')
     second_dynamics_simulator = numerical_simulation.create_dynamics_simulator(
         bodies,
-        benchmark_propagator_settings )
+        benchmark_propagator_settings)
 
     ### WRITE BENCHMARK RESULTS TO FILE ###
     # Retrieve state history
@@ -1036,7 +1040,8 @@ def compare_benchmarks(first_benchmark: dict,
     """
     # Create 8th-order Lagrange interpolator for first benchmark
     benchmark_interpolator = interpolators.create_one_dimensional_vector_interpolator(first_benchmark,
-                                                                                      interpolators.lagrange_interpolation(8))
+                                                                                      interpolators.lagrange_interpolation(
+                                                                                          8))
     # Calculate the difference between the benchmarks
     print('Calculating benchmark differences...')
     # Initialize difference dictionaries
@@ -1051,6 +1056,7 @@ def compare_benchmarks(first_benchmark: dict,
     # Return the interpolator
     return benchmark_difference
 
+
 ###########################################################################
 # LAMBERT UTILITIES #####################################################
 ###########################################################################
@@ -1059,8 +1065,7 @@ def get_lambert_problem_result(
         bodies: tudatpy.kernel.numerical_simulation.environment.SystemOfBodies,
         target_body: str,
         departure_epoch: float,
-        arrival_epoch: float ) -> tudatpy.kernel.numerical_simulation.environment.Ephemeris:
-
+        arrival_epoch: float) -> tudatpy.kernel.numerical_simulation.environment.Ephemeris:
     """"
     This function solved Lambert's problem for a transfer from Earth (at departure epoch) to
     a target body (at arrival epoch), with the states of Earth and the target body defined
@@ -1113,7 +1118,7 @@ def get_lambert_problem_result(
 
     # Compute Keplerian state of Lambert arc
     lambert_arc_keplerian_elements = element_conversion.cartesian_to_keplerian(lambert_arc_initial_state,
-                                                                       central_body_gravitational_parameter)
+                                                                               central_body_gravitational_parameter)
 
     # Setup Keplerian ephemeris model that describes the Lambert arc
     kepler_ephemeris = environment_setup.create_body_ephemeris(
@@ -1122,6 +1127,7 @@ def get_lambert_problem_result(
 
     return kepler_ephemeris
 
+
 def propagate_trajectory(
         initial_time: float,
         final_time: float,
@@ -1129,9 +1135,8 @@ def propagate_trajectory(
         lambert_arc_ephemeris: tudatpy.kernel.numerical_simulation.environment.Ephemeris,
         use_perturbations: bool,
         initial_state_correction=np.array([0, 0, 0, 0, 0, 0]),
-        use_rsw_acceleration = False,
-        rsw_acceleration_magnitude = np.array([0,0,0])) -> numerical_simulation.SingleArcSimulator:
-
+        use_rsw_acceleration=False,
+        rsw_acceleration_magnitude=np.array([0, 0, 0])) -> numerical_simulation.SingleArcSimulator:
     """
     This function will be repeatedly called throughout the assignment. Propagates the trajectory based
     on several input parameters
@@ -1167,16 +1172,16 @@ def propagate_trajectory(
     # Get propagator settings for perturbed/unperturbed forwards/backwards arcs
     if use_perturbations:
         propagator_settings = get_perturbed_propagator_settings(
-            bodies, lambert_arc_initial_state, final_time,use_rsw_acceleration,rsw_acceleration_magnitude)
+            bodies, lambert_arc_initial_state, final_time, use_rsw_acceleration, rsw_acceleration_magnitude)
     else:
         propagator_settings = get_unperturbed_propagator_settings(
             bodies, lambert_arc_initial_state, final_time)
 
     # If propagation is backwards in time, make initial time step negative
     if initial_time > final_time:
-        signed_fixed_step_size = -3600.0*24
+        signed_fixed_step_size = -3600.0 * 24
     else:
-        signed_fixed_step_size = 3600.0*24
+        signed_fixed_step_size = 3600.0 * 24
 
     # Create numerical integrator settings
     integrator_settings = propagation_setup.integrator.runge_kutta_4(initial_time, signed_fixed_step_size)
@@ -1186,10 +1191,11 @@ def propagate_trajectory(
 
     return dynamics_simulator
 
+
 def get_unperturbed_propagator_settings(
         bodies: tudatpy.kernel.numerical_simulation.environment.SystemOfBodies,
         initial_state: np.array,
-        termination_time: float ) -> propagation_setup.propagator.SingleArcPropagatorSettings:
+        termination_time: float) -> propagation_setup.propagator.SingleArcPropagatorSettings:
     """
     Creates the propagator settings for an unperturbed trajectory.
 
@@ -1207,17 +1213,17 @@ def get_unperturbed_propagator_settings(
     Propagation settings of the unperturbed trajectory.
     """
 
-    bodies.get_body( 'Vehicle' ).mass = 24.0
+    bodies.get_body('Vehicle').mass = 24.0
 
     bodies_to_propagate = ['Vehicle']
     central_bodies = ['Sun']
 
     # Define accelerations acting on vehicle.
     acceleration_settings_on_spacecraft = dict(
-    Sun=
-    [
-        propagation_setup.acceleration.point_mass_gravity()
-    ]
+        Sun=
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ]
     )
 
     acceleration_settings = {'Vehicle': acceleration_settings_on_spacecraft}
@@ -1225,7 +1231,7 @@ def get_unperturbed_propagator_settings(
     acceleration_models = propagation_setup.create_acceleration_models(
         bodies, acceleration_settings, bodies_to_propagate, central_bodies)
 
-    termination_settings = propagation_setup.propagator.time_termination( termination_time )
+    termination_settings = propagation_setup.propagator.time_termination(termination_time)
 
     dependent_variables_to_save = [
         propagation_setup.dependent_variable.relative_position("Earth", "Sun"),
@@ -1241,16 +1247,17 @@ def get_unperturbed_propagator_settings(
         bodies_to_propagate,
         initial_state,
         termination_settings,
-        output_variables = dependent_variables_to_save
+        output_variables=dependent_variables_to_save
     )
     return propagator_settings
+
 
 def get_perturbed_propagator_settings(
         bodies: tudatpy.kernel.numerical_simulation.environment.SystemOfBodies,
         initial_state: np.array,
         termination_time: float,
-        use_rsw_acceleration = False,
-        rsw_acceleration_magnitude = np.array([0,0,0])) -> propagation_setup.propagator.SingleArcPropagatorSettings:
+        use_rsw_acceleration=False,
+        rsw_acceleration_magnitude=np.array([0, 0, 0])) -> propagation_setup.propagator.SingleArcPropagatorSettings:
     """
     Creates the propagator settings for a perturbed trajectory.
 
@@ -1273,7 +1280,7 @@ def get_perturbed_propagator_settings(
     Propagation settings of the perturbed trajectory.
     """
 
-    bodies.get_body( 'Vehicle' ).mass = 24.0
+    bodies.get_body('Vehicle').mass = 24.0
 
     reference_area_radiation = 0.2 * 0.2
     radiation_pressure_coefficient = 1.2
@@ -1281,7 +1288,7 @@ def get_perturbed_propagator_settings(
         "Sun", reference_area_radiation, radiation_pressure_coefficient
     )
     environment_setup.add_radiation_pressure_interface(
-            bodies, "Vehicle", radiation_pressure_settings
+        bodies, "Vehicle", radiation_pressure_settings
     )
 
     bodies_to_propagate = ['Vehicle']
@@ -1289,35 +1296,35 @@ def get_perturbed_propagator_settings(
 
     # Define accelerations acting on vehicle.
     acceleration_settings_on_spacecraft = dict(
-    Venus=
-    [
-        propagation_setup.acceleration.point_mass_gravity()
-    ],
-    Earth=
-    [
-        propagation_setup.acceleration.point_mass_gravity()
-    ],
-    Moon=
-    [
-        propagation_setup.acceleration.point_mass_gravity()
-    ],
-    Mars=
-    [
-        propagation_setup.acceleration.point_mass_gravity()
-    ],
-    Jupiter=
-    [
-        propagation_setup.acceleration.point_mass_gravity()
-    ],
-    Saturn=
-    [
-        propagation_setup.acceleration.point_mass_gravity()
-    ],
-    Sun=
-    [
-        propagation_setup.acceleration.point_mass_gravity(),
-        propagation_setup.acceleration.cannonball_radiation_pressure()
-    ]
+        Venus=
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ],
+        Earth=
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ],
+        Moon=
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ],
+        Mars=
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ],
+        Jupiter=
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ],
+        Saturn=
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ],
+        Sun=
+        [
+            propagation_setup.acceleration.point_mass_gravity(),
+            propagation_setup.acceleration.cannonball_radiation_pressure()
+        ]
     )
 
     # DO NOT MODIFY, and keep AFTER creation of acceleration_settings_on_spacecraft
@@ -1331,10 +1338,10 @@ def get_perturbed_propagator_settings(
     acceleration_models = propagation_setup.create_acceleration_models(
         bodies, acceleration_settings, bodies_to_propagate, central_bodies)
 
-    termination_settings = propagation_setup.propagator.time_termination( termination_time )
+    termination_settings = propagation_setup.propagator.time_termination(termination_time)
 
     dependent_variables_to_save = [
-            propagation_setup.dependent_variable.total_acceleration( "Vehicle" )
+        propagation_setup.dependent_variable.total_acceleration("Vehicle")
     ]
 
     # Create propagation settings.
@@ -1344,9 +1351,10 @@ def get_perturbed_propagator_settings(
         bodies_to_propagate,
         initial_state,
         termination_settings,
-        output_variables = dependent_variables_to_save
+        output_variables=dependent_variables_to_save
     )
     return propagator_settings
+
 
 def write_propagation_results_to_file(
         dynamics_simulator: numerical_simulation.SingleArcSimulator,
@@ -1405,9 +1413,10 @@ def write_propagation_results_to_file(
 
     return
 
+
 def get_lambert_arc_history(
         lambert_arc_ephemeris: tudatpy.kernel.numerical_simulation.environment.Ephemeris,
-        simulation_result: dict ) -> dict:
+        simulation_result: dict) -> dict:
     """"
     This function extracts the state history (as a dict with time as keys, and Cartesian states as values)
     from an Ephemeris object defined by a lambert solver. This function takes a dictionary of states (simulation_result)
@@ -1434,6 +1443,7 @@ def get_lambert_arc_history(
         lambert_arc_states[state] = lambert_arc_ephemeris.cartesian_state(state)
 
     return lambert_arc_states
+
 
 def compare_models(first_model: dict,
                    second_model: dict,
