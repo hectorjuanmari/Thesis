@@ -152,8 +152,6 @@ trajectory_parameters = [7454.4212962963,
                          -3567.68,
                          -2806.92]
 
-#trajectory_parameters = [303.3622685185,	385.03125,	0,	-999.466,	-6807.06,	-3851.67,	1519.75,	7624.45,	9524.28]
-
 # Choose whether benchmark is run
 use_benchmark = True
 run_integrator_analysis = False
@@ -174,10 +172,14 @@ specific_impulse = 2500
 minimum_mars_distance = 5.0E7
 # Time since 'departure from Earth CoM' at which propagation starts (and similar
 # for arrival time)
-time_buffer = 20.0 * constants.JULIAN_DAY
+time_buffer = 30.0 * constants.JULIAN_DAY
 # Time at which to start propagation
 initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters,
                                                             time_buffer)
+
+# Initialize dictionary to store the results of the simulation
+simulation_results = dict()
+
 ###########################################################################
 # CREATE ENVIRONMENT ######################################################
 ###########################################################################
@@ -239,64 +241,33 @@ dependent_variables_to_save = Util.get_dependent_variable_save_settings()
 # Check whether there is any
 are_dependent_variables_to_save = False if not dependent_variables_to_save else True
 
-###########################################################################
-# IF DESIRED, GENERATE AND COMPARE BENCHMARKS #############################
-###########################################################################
+propagator_settings = Util.get_propagator_settings(
+    trajectory_parameters,
+    bodies,
+    initial_propagation_time,
+    vehicle_mass,
+    termination_settings,
+    dependent_variables_to_save,
+    current_propagator=propagation_setup.propagator.cowell,
+    model_choice=17,
+    vinf=[[4000], [0], [0]])
 
-if use_benchmark:
-    # Define benchmark interpolator settings to make a comparison between the two benchmarks
-    benchmark_interpolator_settings = interpolators.lagrange_interpolation(
-        8, boundary_interpolation=interpolators.extrapolate_at_boundary)
+propagator_settings.integrator_settings = Util.get_integrator_settings(
+    0, 7, 1, initial_propagation_time)
+# Propagate dynamics
+dynamics_simulator = numerical_simulation.create_dynamics_simulator(
+    bodies, propagator_settings)
 
-    # Create propagator settings for benchmark (Cowell)
-    propagator_settings = Util.get_propagator_settings(
-        trajectory_parameters,
-        bodies,
-        initial_propagation_time,
-        vehicle_mass,
-        termination_settings,
-        dependent_variables_to_save,
-        current_propagator=propagation_setup.propagator.cowell,
-        model_choice=17)
+benchmark_output_path = current_dir + '/SimulationOutput/benchmarks/' if write_results_to_file else None
 
-    benchmark_output_path = current_dir + '/SimulationOutput/benchmarks/' if write_results_to_file else None
+### OUTPUT OF THE SIMULATION ###
+# Retrieve propagated state and dependent variables
+# NOTE TO STUDENTS, the following retrieve the propagated states, converted to Cartesian states
+state_history = dynamics_simulator.state_history
+dependent_variable_history = dynamics_simulator.dependent_variable_history
 
-    # Generate benchmarks
-    benchmark_step_size = 86400.0
-    benchmark_list = Util.generate_benchmarks(benchmark_step_size,
-                                              initial_propagation_time,
-                                              bodies,
-                                              propagator_settings,
-                                              are_dependent_variables_to_save,
-                                              benchmark_output_path)
-    # Extract benchmark states
-    first_benchmark_state_history = benchmark_list[0]
-    second_benchmark_state_history = benchmark_list[1]
-    # Create state interpolator for first benchmark
-    benchmark_state_interpolator = interpolators.create_one_dimensional_vector_interpolator(
-        first_benchmark_state_history,
-        benchmark_interpolator_settings)
-
-    # Compare benchmark states, returning interpolator of the first benchmark
-    benchmark_state_difference = Util.compare_benchmarks(first_benchmark_state_history,
-                                                         second_benchmark_state_history,
-                                                         benchmark_output_path,
-                                                         'benchmarks_state_difference.dat')
-
-    # Extract benchmark dependent variables, if present
-    if are_dependent_variables_to_save:
-        first_benchmark_dependent_variable_history = benchmark_list[2]
-        second_benchmark_dependent_variable_history = benchmark_list[3]
-        # Create dependent variable interpolator for first benchmark
-        benchmark_dependent_variable_interpolator = interpolators.create_one_dimensional_vector_interpolator(
-            first_benchmark_dependent_variable_history,
-            benchmark_interpolator_settings)
-
-        # Compare benchmark dependent variables, returning interpolator of the first benchmark, if present
-        benchmark_dependent_difference = Util.compare_benchmarks(first_benchmark_dependent_variable_history,
-                                                                 second_benchmark_dependent_variable_history,
-                                                                 benchmark_output_path,
-                                                                 'benchmarks_dependent_variable_difference.dat')
+# Save results to a dictionary
+simulation_results = [state_history, dependent_variable_history]
 
 ###########################################################################
 # # WRITE RESULTS FOR SEMI-ANALYTICAL METHOD ################################
@@ -304,7 +275,7 @@ if use_benchmark:
 
 # Create problem without propagating
 hodographic_shaping_object = Util.create_hodographic_trajectory(trajectory_parameters,
-                                                                bodies)
+                                                                bodies, vinf=[[4000], [0], [0]])
 
 # Prepares output path
 if write_results_to_file:
@@ -316,11 +287,9 @@ hodographic_state_history = Util.get_hodographic_trajectory(hodographic_shaping_
                                 output_path)
 
 hodographic_state_history_list = result2array(hodographic_state_history)
-first_benchmark_state_history_list = result2array(first_benchmark_state_history)
-second_benchmark_state_history_list = result2array(second_benchmark_state_history)
-benchmark_state_difference_list = result2array(benchmark_state_difference)
-dependent_var = result2array(first_benchmark_dependent_variable_history)
-time = first_benchmark_state_history_list[:,0]
+propagation_state_history_list = result2array(state_history)
+dependent_var = result2array(dependent_variable_history)
+time = dependent_var[:,0]
 time_days = (time-time[0])/constants.JULIAN_DAY
 
 plt.rc('font', size=9)  # controls default text size
@@ -341,7 +310,7 @@ plt.figure(figsize=(width, height))
 ax = plt.axes(projection='3d')
 
 ax.plot3D(hodographic_state_history_list[:,1], hodographic_state_history_list[:,2], hodographic_state_history_list[:,3], label='Vehicle', linewidth=1.5, color='tab:red')
-ax.plot3D(first_benchmark_state_history_list[:,1], first_benchmark_state_history_list[:,2], first_benchmark_state_history_list[:,3], label='Vehicle', linewidth=1.5, color='tab:blue')
+ax.plot3D(propagation_state_history_list[:,1], propagation_state_history_list[:,2], propagation_state_history_list[:,3], label='Vehicle', linewidth=1.5, color='tab:blue')
 ax.plot3D(dependent_var[:,4], dependent_var[:,5], dependent_var[:,6], label='Earth', linewidth=0.8, color='tab:green')
 ax.plot3D(dependent_var[:,7], dependent_var[:,8], dependent_var[:,9], label='Mars', linewidth=0.8, color='tab:orange')
 
@@ -354,13 +323,50 @@ ax.zaxis.labelpad = 20
 ax.legend(fontsize='small')
 plt.grid(True)
 
-sc_dist_earth = np.linalg.norm(dependent_var[:,4:7] - first_benchmark_state_history_list[:,1:4], axis=1)
+sc_dist_earth = np.linalg.norm(dependent_var[:,4:7] - propagation_state_history_list[:,1:4], axis=1)
 
 print('The initial distance to Earth is', (sc_dist_earth[0]), 'm')
 
-sc_dist_mars = np.linalg.norm(dependent_var[:,7:10] - first_benchmark_state_history_list[:,1:4], axis=1)
+sc_dist_mars = np.linalg.norm(dependent_var[:,7:10] - propagation_state_history_list[:,1:4], axis=1)
 
 print('The final distance to Mars with Mars states from dependent variables is', (sc_dist_mars[-1]), 'm')
+
+hodographic_interpolator = interpolators.create_one_dimensional_vector_interpolator(hodographic_state_history,
+                                                                                  interpolators.lagrange_interpolation(
+                                                                                      8))
+propagation_difference = dict()
+for epoch in state_history.keys():
+    propagation_difference[epoch] = hodographic_interpolator.interpolate(epoch)[:6] - state_history[epoch][:6]
+
+propagation_difference_list = result2array(propagation_difference)
+
+benchmark_state_difference_norm = np.linalg.norm(propagation_difference_list[:,1:4],axis=1)
+
+plt.figure(figsize=(width, height))
+plt.plot((propagation_difference_list[:,0]-propagation_difference_list[0,0]) / constants.JULIAN_DAY, benchmark_state_difference_norm[:])
+plt.xlabel('Time')
+plt.ylabel('Benchmark difference [m]')
+plt.grid(True)
+plt.tight_layout()
+
+sc_thrust = dependent_var[:, 11]
+sc_acceleration = np.linalg.norm(
+    dependent_var[:, 12:15] - dependent_var[:, 15:18] - dependent_var[:, 18:21],
+    axis=1)
+
+plt.figure(figsize=(width, height))
+
+plt.plot(time_days, sc_thrust)
+plt.plot(time_days, sc_acceleration)
+plt.xlim([min(time_days), max(time_days)])
+plt.xlabel('Time [days]')
+plt.ylabel('Acceleration [m/s^2]')
+plt.legend(
+    ['Hodographic thrust profile', 'Accelerations on SC'], loc='upper center', bbox_to_anchor=(0.5, 1.05),
+    ncol=3, fancybox=True, shadow=True, fontsize='small')
+plt.grid(True)
+plt.yscale('log')
+plt.tight_layout()
 
 plt.figure(figsize=(width, height))
 
@@ -372,7 +378,7 @@ plt.ylabel('SC distance to Earth [m]')
 plt.grid(True)
 plt.tight_layout()
 
-sc_mass = first_benchmark_state_history_list[:,7]
+sc_mass = propagation_state_history_list[:,7]
 
 plt.figure(figsize=(width, height))
 
