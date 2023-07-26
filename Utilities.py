@@ -101,7 +101,7 @@ def get_dependent_variable_save_settings() -> list:
     dependent_variables_to_save = [propagation_setup.dependent_variable.relative_distance('Vehicle', 'Earth'),
                                    propagation_setup.dependent_variable.relative_distance('Vehicle', 'Sun'),
                                    propagation_setup.dependent_variable.relative_distance('Vehicle', 'Mars'),
-                                   propagation_setup.dependent_variable.relative_position("Earth", "SSB"),
+                                   propagation_setup.dependent_variable.relative_position("Earth", "Sun"),
                                    propagation_setup.dependent_variable.relative_position("Mars", "SSB"),
                                    propagation_setup.dependent_variable.body_mass("Vehicle"),
                                    propagation_setup.dependent_variable.single_acceleration_norm(
@@ -110,7 +110,9 @@ def get_dependent_variable_save_settings() -> list:
                                    propagation_setup.dependent_variable.single_acceleration(
                                        propagation_setup.acceleration.point_mass_gravity_type, 'Vehicle', 'Sun'),
                                    propagation_setup.dependent_variable.single_acceleration(
-                                       propagation_setup.acceleration.thrust_acceleration_type, 'Vehicle', 'Vehicle')
+                                       propagation_setup.acceleration.thrust_acceleration_type, 'Vehicle', 'Vehicle'),
+                                   propagation_setup.dependent_variable.relative_position("Vehicle", "SSB"),
+                                   propagation_setup.dependent_variable.relative_position("Vehicle", "Sun")
                                    ]
 
     return dependent_variables_to_save

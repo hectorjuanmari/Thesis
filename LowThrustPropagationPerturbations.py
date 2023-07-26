@@ -173,6 +173,7 @@ minimum_mars_distance = 5.0E7
 # Time since 'departure from Earth CoM' at which propagation starts (and similar
 # for arrival time)
 time_buffer = 30.0 * constants.JULIAN_DAY
+
 # Time at which to start propagation
 initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters,
                                                             time_buffer)
@@ -202,6 +203,46 @@ global_frame_orientation = 'ECLIPJ2000'
 body_settings = environment_setup.get_default_body_settings(bodies_to_create,
                                                             global_frame_origin,
                                                             global_frame_orientation)
+
+effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+                                    spice_interface.get_body_gravitational_parameter('Mercury')
+body_settings.get('Mercury').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+    'Mercury', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+                                    spice_interface.get_body_gravitational_parameter('Venus')
+body_settings.get('Venus').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+    'Venus', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+                                    spice_interface.get_body_gravitational_parameter('Earth')
+body_settings.get('Earth').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+    'Earth', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+                                    spice_interface.get_body_gravitational_parameter('Mars')
+body_settings.get('Mars').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+    'Mars', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+                                    spice_interface.get_body_gravitational_parameter('Jupiter')
+body_settings.get('Jupiter').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+    'Jupiter', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+                                    spice_interface.get_body_gravitational_parameter('Saturn')
+body_settings.get('Saturn').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+    'Saturn', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+                                    spice_interface.get_body_gravitational_parameter('Uranus')
+body_settings.get('Uranus').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+    'Uranus_BARYCENTER', initial_propagation_time, effective_gravitational_parameter, 'Sun',
+    global_frame_orientation)
+effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+                                    spice_interface.get_body_gravitational_parameter('Neptune')
+body_settings.get('Neptune').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+    'Neptune_BARYCENTER', initial_propagation_time, effective_gravitational_parameter, 'Sun',
+    global_frame_orientation)
+effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Earth') + \
+                                    spice_interface.get_body_gravitational_parameter('Moon')
+body_settings.get('Moon').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+    'Moon', initial_propagation_time, effective_gravitational_parameter, 'Earth', global_frame_orientation)
+
 # Create bodies
 bodies = environment_setup.create_system_of_bodies(body_settings)
 
@@ -325,11 +366,9 @@ plt.grid(True)
 
 sc_dist_earth = np.linalg.norm(dependent_var[:,4:7] - propagation_state_history_list[:,1:4], axis=1)
 
-print('The initial distance to Earth is', (sc_dist_earth[0]), 'm')
+print('The initial distance to Earth is', dependent_var[0, 1], 'm')
 
-sc_dist_mars = np.linalg.norm(dependent_var[:,7:10] - propagation_state_history_list[:,1:4], axis=1)
-
-print('The final distance to Mars with Mars states from dependent variables is', (sc_dist_mars[-1]), 'm')
+print('The final distance to Mars is', dependent_var[-1, 3], 'm')
 
 hodographic_interpolator = interpolators.create_one_dimensional_vector_interpolator(hodographic_state_history,
                                                                                   interpolators.lagrange_interpolation(
@@ -347,25 +386,6 @@ plt.plot((propagation_difference_list[:,0]-propagation_difference_list[0,0]) / c
 plt.xlabel('Time')
 plt.ylabel('Benchmark difference [m]')
 plt.grid(True)
-plt.tight_layout()
-
-sc_thrust = dependent_var[:, 11]
-sc_acceleration = np.linalg.norm(
-    dependent_var[:, 12:15] - dependent_var[:, 15:18] - dependent_var[:, 18:21],
-    axis=1)
-
-plt.figure(figsize=(width, height))
-
-plt.plot(time_days, sc_thrust)
-plt.plot(time_days, sc_acceleration)
-plt.xlim([min(time_days), max(time_days)])
-plt.xlabel('Time [days]')
-plt.ylabel('Acceleration [m/s^2]')
-plt.legend(
-    ['Hodographic thrust profile', 'Accelerations on SC'], loc='upper center', bbox_to_anchor=(0.5, 1.05),
-    ncol=3, fancybox=True, shadow=True, fontsize='small')
-plt.grid(True)
-plt.yscale('log')
 plt.tight_layout()
 
 plt.figure(figsize=(width, height))
@@ -390,12 +410,31 @@ plt.ylabel('SC Mass [kg]')
 plt.grid(True)
 plt.tight_layout()
 
+sc_thrust = dependent_var[:, 11] * sc_mass
+sc_acceleration = np.linalg.norm(
+    dependent_var[:, 12:15] - dependent_var[:, 15:18] - dependent_var[:, 18:21],
+    axis=1) * sc_mass
+
+plt.figure(figsize=(width, height))
+
+plt.plot(time_days, sc_thrust)
+plt.plot(time_days, sc_acceleration)
+plt.xlim([min(time_days), max(time_days)])
+plt.xlabel('Time [days]')
+plt.ylabel('Acceleration [m/s^2]')
+plt.legend(
+    ['Hodographic thrust profile', 'Accelerations on SC'], loc='upper center', bbox_to_anchor=(0.5, 1.05),
+    ncol=3, fancybox=True, shadow=True, fontsize='small')
+plt.grid(True)
+plt.yscale('log')
+plt.tight_layout()
+
 delta_v_total = 20*np.log(sc_mass[0]/sc_mass[-1])
 
 print('The total delta-V for this maneuver is', delta_v_total, 'km/s')
 
-max_acc = max(dependent_var[:,11])*1000
+max_acc = max(dependent_var[:,11]*sc_mass)*1000
 
-print('The maximum thrust acceleration is', max_acc, 'mN')
+print('The maximum thrust force is', max_acc, 'mN')
 
 plt.show()
