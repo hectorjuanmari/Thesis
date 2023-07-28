@@ -350,7 +350,7 @@ height = width * golden_ratio
 plt.figure(figsize=(width, height))
 ax = plt.axes(projection='3d')
 
-ax.plot3D(hodographic_state_history_list[:,1], hodographic_state_history_list[:,2], hodographic_state_history_list[:,3], label='Vehicle', linewidth=1.5, color='tab:red')
+ax.plot3D(hodographic_state_history_list[:,1], hodographic_state_history_list[:,2], hodographic_state_history_list[:,3], label='Hodograph', linewidth=1.5, color='tab:red')
 ax.plot3D(propagation_state_history_list[:,1], propagation_state_history_list[:,2], propagation_state_history_list[:,3], label='Vehicle', linewidth=1.5, color='tab:blue')
 ax.plot3D(dependent_var[:,4], dependent_var[:,5], dependent_var[:,6], label='Earth', linewidth=0.8, color='tab:green')
 ax.plot3D(dependent_var[:,7], dependent_var[:,8], dependent_var[:,9], label='Mars', linewidth=0.8, color='tab:orange')

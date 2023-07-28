@@ -11,13 +11,13 @@ from matplotlib import rc
 import os
 import pickle
 
-compute = False
+compute = True
 
 # Load spice kernels.
 spice_interface.load_standard_kernels()
 
 # Define directory where simulation output will be written
-output_directory = "./SimulationOutput/"
+output_directory = 'C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput'
 
 ###########################################################################
 # DEFINE SIMULATION SETTINGS ##############################################
@@ -34,8 +34,8 @@ time_buffer = 0.0 * constants.JULIAN_DAY
 
 # Time at which to start propagation
 n = 200
-departure_min = time_conversion.calendar_date_to_julian_day(datetime.datetime(2028, 6, 1))
-departure_max = time_conversion.calendar_date_to_julian_day(datetime.datetime(2029, 6, 1))
+departure_min = time_conversion.calendar_date_to_julian_day(datetime.datetime(2028, 9, 1))
+departure_max = time_conversion.calendar_date_to_julian_day(datetime.datetime(2029, 5, 1))
 departure_epoch_range = [(departure_min-constants.JULIAN_DAY_ON_J2000)*constants.JULIAN_DAY, (departure_max-constants.JULIAN_DAY_ON_J2000)*constants.JULIAN_DAY]
 departure_epoch_list = np.linspace(departure_epoch_range[0], departure_epoch_range[1], n)
 time_of_flight = [150*constants.JULIAN_DAY, 500*constants.JULIAN_DAY]
@@ -131,35 +131,35 @@ if compute:
     # plt.plot(time_of_flight_list, C3)
 
     try:
-        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/departure_epoch_list_4.pickle", "wb") as f:
+        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/departure_epoch_list_3.pickle", "wb") as f:
             pickle.dump(departure_epoch_list, f, protocol=pickle.HIGHEST_PROTOCOL)
     except Exception as ex:
         print("Error during pickling object (Possibly unsupported):", ex)
 
     try:
-        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/time_of_flight_list_4.pickle", "wb") as f:
+        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/time_of_flight_list_3.pickle", "wb") as f:
             pickle.dump(time_of_flight_list, f, protocol=pickle.HIGHEST_PROTOCOL)
     except Exception as ex:
         print("Error during pickling object (Possibly unsupported):", ex)
 
     try:
-        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/C3_4.pickle", "wb") as f:
+        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/C3_3.pickle", "wb") as f:
             pickle.dump(C3, f, protocol=pickle.HIGHEST_PROTOCOL)
     except Exception as ex:
         print("Error during pickling object (Possibly unsupported):", ex)
 else:
     try:
-        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/departure_epoch_list_2.pickle", "rb") as f:
+        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/departure_epoch_list_3.pickle", "rb") as f:
             departure_epoch_list = pickle.load(f)
     except Exception as ex:
         print("Error during pickling object (Possibly unsupported):", ex)
     try:
-        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/time_of_flight_list_2.pickle", "rb") as f:
+        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/time_of_flight_list_3.pickle", "rb") as f:
             time_of_flight_list = pickle.load(f)
     except Exception as ex:
         print("Error during pickling object (Possibly unsupported):", ex)
     try:
-        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/C3_2.pickle", "rb") as f:
+        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/Lambert/C3_3.pickle", "rb") as f:
             C3 = pickle.load(f)
     except Exception as ex:
         print("Error during pickling object (Possibly unsupported):", ex)
