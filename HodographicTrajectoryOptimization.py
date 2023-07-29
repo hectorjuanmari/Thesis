@@ -66,6 +66,20 @@ from tudatpy.kernel.astro import time_conversion
 
 # Problem-specific imports
 import Utilities as Util
+from LowThrustProblem_SO import LowThrustProblem_SO
+import pygmo as pg
+AU = 1.495978707e11
+
+###########################################################################
+# DEFINE HOUSEKEEPING SETTINGS ############################################
+###########################################################################
+
+exercise = '3'
+N_revs = 0
+convergence_rate = 1.0  # IN PERCENTAGE! So this is 1%
+buffer_time_days = 30
+original_population_size = 10
+max_number_of_generations = 10
 
 ###########################################################################
 # DEFINE GLOBAL SETTINGS ##################################################
@@ -84,6 +98,18 @@ time_of_flight_1 = 200
 time_of_flight_2 = 700
 time_of_flight_list = np.linspace(time_of_flight_1, time_of_flight_2, m)
 
+hard_increase = 5/100
+soft_increase = 10/100
+constraint_bounds = np.array([1.25e-3])
+increase = [hard_increase]
+
+ultimate_constraint_bounds = np.zeros([len(constraint_bounds)])
+for k in range(len(increase)):
+    ultimate_constraint_bounds[k] = constraint_bounds[k]*(1+increase[k])
+
+constraint_bounds = np.vstack([constraint_bounds, ultimate_constraint_bounds])
+constraint_bounds[1,-1] = 350
+
 delta_v = np.zeros([n, m])
 
 compute = True
@@ -95,6 +121,10 @@ if compute:
     for initial_time in initial_time_list:
         j = 0
         for time_of_flight in time_of_flight_list:
+
+            decision_variable_range = \
+                [[initial_time, time_of_flight, N_revs, -10000, -10000, -10000, -10000, -10000, -10000],
+                 [initial_time, time_of_flight, N_revs, 10000, 10000, 10000, 10000, 10000, 10000]]
 
             trajectory_parameters = [initial_time,
                                      time_of_flight,
@@ -113,7 +143,10 @@ if compute:
             # Vehicle settings
             vehicle_mass = 22
             specific_impulse = 2500.0
-
+            minimum_mars_distance = 5.0E7
+            # Time since 'departure from Earth CoM' at which propagation starts (and similar
+            # for arrival time)
+            buffer_time = buffer_time_days * constants.JULIAN_DAY
             ###########################################################################
             # CREATE ENVIRONMENT ######################################################
             ###########################################################################
@@ -138,6 +171,134 @@ if compute:
 
             # Adding excess velocity
             vinf = [[4000], [0], [0]]
+
+            current_low_thrust_problem = LowThrustProblem_SO(bodies,
+                                                             specific_impulse,
+                                                             minimum_mars_distance,
+                                                             buffer_time,
+                                                             vehicle_mass,
+                                                             vinf,
+                                                             decision_variable_range,
+                                                             constraint_bounds,
+                                                             True)
+
+            problema = pg.problem(current_low_thrust_problem)
+
+            seed_list = [666, 4444, 42, 221018, 300321]
+
+            seed_list = [666]
+
+            for current_seed in seed_list:
+
+                seed = current_seed
+                population_seed = current_seed
+                algorithm_seed = current_seed
+
+                available_algorithms = {  # 'GACO': pg.gaco(seed = algorithm_seed),
+                    'DE': pg.de(seed=algorithm_seed),
+                    # 'SADE': pg.sade(seed = algorithm_seed),
+                    # 'DE1220': pg.de1220(seed = algorithm_seed),
+                    # 'GWO': pg.gwo(seed = algorithm_seed),
+                    # 'SGA': pg.sga(seed = algorithm_seed),
+                    # 'IHS': pg.ihs(seed = algorithm_seed),
+                    # 'PSO': pg.pso(seed = algorithm_seed),
+                    # 'GPSO': pg.pso_gen(seed = algorithm_seed),
+                    # 'SEA': pg.sea(seed = algorithm_seed),
+                    # 'SA': pg.simulated_annealing(seed = algorithm_seed),
+                    # 'ABC': pg.bee_colony(seed = algorithm_seed),
+                    # 'CMA-ES': pg.cmaes(seed = algorithm_seed),
+                    # 'xNES': pg.xnes(seed = algorithm_seed),
+                }
+
+                algorithm_list = list(available_algorithms.keys())
+
+                for current_algorithm in algorithm_list:
+
+                    if current_algorithm == 'MOEAD':
+                        population_size = 105
+                    else:
+                        population_size = original_population_size
+
+                    print('--- PROBLEM DESCRIPTION ---')
+                    print('Number of revolutions: %i' % (N_revs))
+                    print('Seed: %i' % (current_seed))
+                    print('Population size: %i' % (population_size))
+                    print('Number of generations: %i' % (max_number_of_generations))
+                    print('Algorithm: %s' % current_algorithm)
+                    print('Convergence rate: ' + f"{convergence_rate / 100:.1%}")
+                    print('-----------------------------\n')
+
+                    convergence_message = '\nEvolution performed for the maximum number of generations.\nConvergence might have not been achieved.\n\n'
+
+                    print('Creating and evaluating generation 0...')
+                    population = pg.population(problema, size=population_size, seed=population_seed)
+
+                    population_dict = dict()
+                    fitness_dict = dict()
+                    compliance_dict = dict()
+                    d_dict = dict()
+
+                    population_dict, fitness_dict = Util.get_fx_dict(population.get_x(), population.get_f(), 0)
+                    d_dict[0] = Util.get_COM(np.array(list(fitness_dict.values())))
+                    current_state = 0
+
+                    algorithm = pg.algorithm(available_algorithms[current_algorithm])
+
+                    for gen in range(1, max_number_of_generations + 1):
+
+                        print('Evolving population. Generation %i/%i --> %i/%i' % (
+                        gen - 1, max_number_of_generations, gen, max_number_of_generations))
+                        population = algorithm.evolve(population)
+
+                        current_population, current_fitness = Util.get_fx_dict(population.get_x(), population.get_f(),
+                                                                               gen)
+                        d_dict[gen] = Util.get_COM(np.array(list(current_fitness.values())))
+
+                        population_dict.update(current_population)
+                        fitness_dict.update(current_fitness)
+
+                        current_state, compliance = Util.get_convergence(fitness_dict, convergence_rate, current_state)
+                        compliance_dict.update(compliance)
+
+                        converged_generation = gen
+
+                        if current_state == 5:
+                            convergence_message = '\nEvolution converged at generation %i\n\n' % (converged_generation)
+                            break
+
+                    compliance_dict = dict()
+
+                    pop_aux = list(population_dict.keys())[-100:]
+
+                    for i in pop_aux:
+                        trajectory_parameters = population_dict[i]
+                        initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters, buffer_time)
+
+                        current_low_thrust_problem = LowThrustProblem_SO(bodies,
+                                                                         specific_impulse,
+                                                                         minimum_mars_distance,
+                                                                         buffer_time,
+                                                                         vehicle_mass,
+                                                                         vinf,
+                                                                         decision_variable_range,
+                                                                         constraint_bounds,
+                                                                         True)
+
+                        fitness = current_low_thrust_problem.fitness_SO(trajectory_parameters)
+
+                        if fitness[2] == 0:
+                            compliance_dict[i] = fitness
+
+                    print(convergence_message)
+
+                    datadir = '/OptimizationOutput/Exercise_%s_Revs_%i_Seed_%i_Algorithm_%s' \
+                              % (exercise, N_revs, seed, current_algorithm)
+
+                    output_path = current_dir + datadir
+                    save2txt(population_dict, 'population.dat', output_path)
+                    save2txt(fitness_dict, 'fitness.dat', output_path)
+                    if len(list(compliance_dict.keys())) != 0: save2txt(compliance_dict, 'compliance.dat', output_path)
+                    save2txt(d_dict, 'd.dat', output_path)
 
             ###########################################################################
             # WRITE RESULTS FOR SEMI-ANALYTICAL METHOD ################################
@@ -219,7 +380,6 @@ plt.figure(figsize=(width, height))
 ax = plt.axes(projection='3d')
 
 ax.plot3D(states_list[:,1], states_list[:,2], states_list[:,3], label='Vehicle', linewidth=1.5)
-# ax.plot3D(states_list_2[:,1], states_list_2[:,2], states_list_2[:,3], label='Vehicle', linewidth=1.5)
 ax.plot3D(earth_array[:,1], earth_array[:,2], earth_array[:,3], label='Earth', linewidth=0.8, color='tab:green')
 ax.plot3D(mars_array[:,1], mars_array[:,2], mars_array[:,3], label='Mars', linewidth=0.8, color='tab:orange')
 
@@ -234,7 +394,11 @@ ax.zaxis.labelpad = 20
 ax.legend(fontsize='small')
 #plt.grid(True)
 #plt.tight_layout()
-plt.savefig("hodographic-transfer.png")
+# plt.savefig("hodographic-transfer.png")
+
+print('Minimum Delta-V is', np.min(delta_v[:, :]), "m/s")
+
+print('Initial date for minimum Delta-V is ', departure_date_list[ind[1]], ' and the TOF is ', time_of_flight_list[ind[0]])
 
 C3 = (np.linalg.norm(states_list[0,4:7]-earth_array[0,4:7])/1000)**2
 

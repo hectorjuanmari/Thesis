@@ -174,7 +174,7 @@ specific_impulse = 2500
 minimum_mars_distance = 5.0E7
 # Time since 'departure from Earth CoM' at which propagation starts (and similar
 # for arrival time)
-time_buffer = 30.0 * constants.JULIAN_DAY
+time_buffer = 0.0 * constants.JULIAN_DAY
 # Time at which to start propagation
 initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters,
                                                             time_buffer)

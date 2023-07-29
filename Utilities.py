@@ -1060,7 +1060,7 @@ def compare_benchmarks(first_benchmark: dict,
 
 
 ###########################################################################
-# LAMBERT UTILITIES #####################################################
+# LAMBERT UTILITIES #######################################################
 ###########################################################################
 
 def get_lambert_problem_result(
@@ -1494,3 +1494,120 @@ def compare_models(first_model: dict,
                  output_path)
     # Return the model difference
     return model_difference
+
+###########################################################################
+# OPTIMISATION UTILITIES ##################################################
+###########################################################################
+
+def get_penalty_function(constraints, bounds):
+    p = 0
+    blow_up = 1e4
+    for k in range(len(constraints)):
+        g_k = constraints[k]-bounds[0, k]
+        g_lim = bounds[1, k] - bounds[0, k]
+
+        if k == 2:
+            g_k = -g_k
+            g_lim = -g_lim
+
+        G_k = max(0.0, g_k)/g_lim  # This is positive by definition!
+        if G_k > 1: G_k = blow_up
+
+        p = p + G_k
+
+    return p
+
+def get_fx_dict(population, fitness, generation):
+    population_size = population.shape[0]
+    # number_of_decision_variables = population.shape[1]
+    # number_of_objectives = fitness.shape[1]
+
+    population_dict = dict()
+    fitness_dict = dict()
+    for individual in range(population_size):
+        track_id = generation + individual/10000
+        population_dict[track_id] = population[individual, :]
+        fitness_dict[track_id] = fitness[individual, :]
+
+    return population_dict, fitness_dict
+
+def get_convergence(fitness, convergence_rate, current_state):
+
+    keys = np.array(list(fitness.keys()))
+    population_size = sum(np.floor(keys) == 0)
+    new_gen = np.floor(keys[-1])
+    old_gen = new_gen - 1
+
+    if old_gen == 0:
+        old_compliance = 0
+
+    compliance_dict = dict()
+
+    old_fitness = np.zeros((population_size, 3))
+    new_fitness = np.zeros((population_size, 3))
+    compliance = 0
+    for individual in range(population_size):
+        old_track = old_gen + individual / 10000
+        new_track = new_gen + individual / 10000
+
+        old_fitness[individual, :] = np.array(list(fitness[old_track]))
+        new_fitness[individual, :] = np.array(list(fitness[new_track]))
+
+        if old_gen == 0 and old_fitness[individual, 2] == 0:
+            old_compliance = old_compliance + 1
+            compliance_dict[old_track] = old_fitness[individual, :]
+
+        if new_fitness[individual, 2] == 0:
+            compliance = compliance + 1
+            compliance_dict[new_track] = new_fitness[individual, :]
+
+    d_old = get_COM(old_fitness)
+    d_new = get_COM(new_fitness)
+
+    increment_d = np.linalg.norm(d_new - d_old)/np.linalg.norm(d_old) * 100
+    convergence = increment_d < convergence_rate
+
+    if convergence: current_state = current_state + 1
+    else: current_state = 0
+
+
+    print('Generation: %i   increment: %f   Convergence: %i/5' % (new_gen, increment_d, current_state))
+
+    if old_gen == 0:
+        print('Individuals meeting ALL requirements in generation 0: %i' % (old_compliance))
+
+    print('Individuals meeting ALL requirements in generation %i: %i' % (new_gen, compliance))
+
+    return current_state, compliance_dict
+
+def get_COM(fitness_array):
+    if fitness_array.shape[1] == 1:
+        population_size = fitness_array.shape[0]
+        cum = 0
+        for individual in range(population_size):
+            cum = cum + fitness_array[individual]
+
+        d = cum / population_size
+        d = np.array([abs(d)])
+
+    else:
+        m_c = 500
+        tof_c = 300
+        delta_m = fitness_array[:, 0]/m_c
+        tof = fitness_array[:, 1]/tof_c
+        p = fitness_array[:, 2]
+
+        # for just_in_case in range(p.shape[0]):
+        #     if p[just_in_case] > 1:
+        #         p[just_in_case] = 100*np.log10(p[just_in_case])
+
+        population_size = delta_m.shape[0]
+        cum = np.zeros(3)
+        for individual in range(population_size):
+            r_k = np.array([delta_m[individual], tof[individual], p[individual]])
+            # d_k = np.sqrt(delta_m[individual]**2 + tof[individual]**2)
+            cum = cum + r_k
+
+        d = cum / population_size
+
+    return d

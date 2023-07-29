@@ -241,4 +241,10 @@ final_vel_vehicle_mars = np.linalg.norm(states_list[-1,1:4]-mars_array[-1,1:4])
 
 print("The final velocity between the vehicle and Mars is ", final_vel_vehicle_mars, "m/s")
 
+sc_acceleration = np.linalg.norm(list(hodographic_shaping_object.rsw_thrust_accelerations_along_trajectory(100).values()),axis=1)
+
+max_acc = max(sc_acceleration*vehicle_mass)*1000
+
+print('The maximum thrust acceleration is', max_acc, 'mN')
+
 plt.show()
