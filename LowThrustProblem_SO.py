@@ -202,7 +202,7 @@ class LowThrustProblem_SO:
 
         penalty_function = Util.get_penalty_function(constraints, self.constraint_bounds)
 
-        weight = 100
+        weight = 0.1
 
         return np.array([dV_LT + weight * penalty_function])
 
@@ -224,73 +224,23 @@ class LowThrustProblem_SO:
         """
         # Create hodographic shaping object
         bodies = self.bodies_function()
-        hodographic_shaping = Util.create_hodographic_shaping_object(trajectory_parameters,
-                                                                     bodies)
+        vinf = self.vinf
+        hodographic_shaping = Util.create_hodographic_trajectory(trajectory_parameters,
+                                                                 bodies, vinf)
         self.hodographic_shaping_function = lambda: hodographic_shaping
-
-        # Propagate trajectory only if required
-        if self.perform_propagation:
-            integrator_settings = self.integrator_settings_function()
-
-            termination_settings = Util.get_termination_settings(trajectory_parameters,
-                                                                 self.minimum_mars_distance,
-                                                                 self.time_buffer)
-            initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters,
-                                                                        self.time_buffer)
-            integrator_settings.initial_time = initial_propagation_time
-            dependent_variables_to_save = Util.get_dependent_variable_save_settings()
-            propagator_settings = Util.get_propagator_settings(
-                trajectory_parameters,
-                bodies,
-                initial_propagation_time,
-                self.specific_impulse,
-                self.vehicle_mass,
-                termination_settings,
-                dependent_variables_to_save,
-                current_propagator=propagation_setup.propagator.cowell)
-
-            # Create simulation object and propagate dynamics
-            dynamics_simulator = numerical_simulation.SingleArcSimulator(bodies,
-                                                                         integrator_settings,
-                                                                         propagator_settings,
-                                                                         print_dependent_variable_data=False)
-
-            self.dynamics_simulator_function = lambda: dynamics_simulator
 
         # Add the objective and constraint values into the fitness vector
 
         # LOW THRUST ΔV
         dV_LT = hodographic_shaping.delta_v_per_leg[0]
 
-        # TOF (decision variable and objective)
-        TOF = trajectory_parameters[1]
-
-        state_history = dynamics_simulator.state_history
-        dependent_variable_history = dynamics_simulator.dependent_variable_history
-
-        # DEPARTURE ΔV (constraint)
-        velocity_initial = state_history[list(state_history.keys())[0]][3:6]
-        velocity_earth = dependent_variable_history[list(dependent_variable_history.keys())[0]][10:13]
-        dV_E = np.linalg.norm(velocity_initial - velocity_earth)
-
-        # Δm (objective)
-        delta_m = state_history[list(state_history.keys())[0]][6] - state_history[list(state_history.keys())[-1]][6]
-
         # MAX THRUST (constraint)
-        thrust = np.multiply(np.array(list(dependent_variable_history.values()))[:, 9],
-                             np.array(list(state_history.values()))[:, 6])
+        thrust = np.linalg.norm(list(hodographic_shaping.rsw_thrust_accelerations_along_trajectory(100).values()),
+                                axis=1) * self.vehicle_mass
         T_max = np.max(thrust)
 
-        # MAX/MIN DISTANCE TO SUN (constraints)
-        dist_sun = np.array(list(dependent_variable_history.values()))[:, 1]
-        d_max = np.max(dist_sun)
-        d_min = np.min(dist_sun)
-
-        # FINAL DISTANCE TO MARS (constraint)
-        dist_mars = np.array(list(dependent_variable_history.values()))[-1, 2]
-
-        constraints = [T_max, d_max, d_min, dist_mars, dV_E]
+        constraints = [T_max]
 
         penalty_function = Util.get_penalty_function(constraints, self.constraint_bounds)
 
-        return [delta_m, TOF, penalty_function]
+        return [dV_LT, penalty_function]

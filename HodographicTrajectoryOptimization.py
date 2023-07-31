@@ -74,12 +74,19 @@ AU = 1.495978707e11
 # DEFINE HOUSEKEEPING SETTINGS ############################################
 ###########################################################################
 
-exercise = '3'
+# '1' -
+# '2' -
+# '3' - n = 7, (2028, 10, 15) - (2029, 4, 15), m = 50, 200 - 700, N_revs = 0, vinf = 4000
+# '4' - n = 7, (2028, 10, 15) - (2029, 4, 15), m = 50, 200 - 700, N_revs = 1, vinf = 4000
+# '5' - n = 7, (2028, 10, 15) - (2029, 4, 15), m = 50, 200 - 700, N_revs = 0, vinf = 0
+# '6' - n = 20, (2028, 10, 1) - (2029, 3, 1), m = 20, 200 - 550, N_revs = 0, vinf = 4000
+
+exercise = '6'
 N_revs = 0
 convergence_rate = 1.0  # IN PERCENTAGE! So this is 1%
 buffer_time_days = 30
-original_population_size = 10
-max_number_of_generations = 10
+original_population_size = 100
+max_number_of_generations = 100
 
 ###########################################################################
 # DEFINE GLOBAL SETTINGS ##################################################
@@ -88,33 +95,69 @@ max_number_of_generations = 10
 # Load spice kernels
 spice_interface.load_standard_kernels()
 
-n = 2
-initial_time_1 = time_conversion.calendar_date_to_julian_day(datetime.datetime(2028, 10, 15))-constants.JULIAN_DAY_ON_J2000
-initial_time_2 = time_conversion.calendar_date_to_julian_day(datetime.datetime(2029, 4, 15))-constants.JULIAN_DAY_ON_J2000
+n = 20
+initial_time_1 = time_conversion.calendar_date_to_julian_day(datetime.datetime(2028, 10, 1))-constants.JULIAN_DAY_ON_J2000
+initial_time_2 = time_conversion.calendar_date_to_julian_day(datetime.datetime(2029, 3, 1))-constants.JULIAN_DAY_ON_J2000
 initial_time_list = np.linspace(initial_time_1, initial_time_2, n)
 
-m = 2
+m = 20
 time_of_flight_1 = 200
-time_of_flight_2 = 700
+time_of_flight_2 = 550
 time_of_flight_list = np.linspace(time_of_flight_1, time_of_flight_2, m)
 
-hard_increase = 5/100
-soft_increase = 10/100
+hard_increase = 500/100
+soft_increase = 1000/100
 constraint_bounds = np.array([1.25e-3])
-increase = [hard_increase]
+increase = [soft_increase]
 
 ultimate_constraint_bounds = np.zeros([len(constraint_bounds)])
 for k in range(len(increase)):
     ultimate_constraint_bounds[k] = constraint_bounds[k]*(1+increase[k])
 
 constraint_bounds = np.vstack([constraint_bounds, ultimate_constraint_bounds])
-constraint_bounds[1,-1] = 350
 
+trajectory_parameters_global = np.zeros([n,m,9])
 delta_v = np.zeros([n, m])
 
-compute = True
+compute = False
 write_results_to_file = True
 current_dir = 'C:/Users/hecto/Desktop/TU Delft/Thesis'
+
+###########################################################################
+# DEFINE SIMULATION SETTINGS ##############################################
+###########################################################################
+
+# Vehicle settings
+vehicle_mass = 20
+specific_impulse = 2500.0
+minimum_mars_distance = 5.0E7
+# Time since 'departure from Earth CoM' at which propagation starts (and similar
+# for arrival time)
+buffer_time = buffer_time_days * constants.JULIAN_DAY
+###########################################################################
+# CREATE ENVIRONMENT ######################################################
+###########################################################################
+
+# Define settings for celestial bodies
+bodies_to_create = ['Earth',
+                    'Mars',
+                    'Sun']
+# Define coordinate system
+global_frame_origin = 'SSB'
+global_frame_orientation = 'ECLIPJ2000'
+# Create body settings
+body_settings = environment_setup.get_default_body_settings(bodies_to_create,
+                                                            global_frame_origin,
+                                                            global_frame_orientation)
+# Create bodies
+bodies = environment_setup.create_system_of_bodies(body_settings)
+
+# Create vehicle object and add it to the existing system of bodies
+bodies.create_empty_body('Vehicle')
+bodies.get_body('Vehicle').mass = vehicle_mass
+
+# Adding excess velocity
+vinf = [[4000], [0], [0]]
 
 if compute:
     i = 0
@@ -125,52 +168,6 @@ if compute:
             decision_variable_range = \
                 [[initial_time, time_of_flight, N_revs, -10000, -10000, -10000, -10000, -10000, -10000],
                  [initial_time, time_of_flight, N_revs, 10000, 10000, 10000, 10000, 10000, 10000]]
-
-            trajectory_parameters = [initial_time,
-                                     time_of_flight,
-                                     0,
-                                     8661.95,
-                                     8425.79,
-                                     -8632.97,
-                                     5666.72,
-                                     -3567.68,
-                                     -2806.92]
-
-            ###########################################################################
-            # DEFINE SIMULATION SETTINGS ##############################################
-            ###########################################################################
-
-            # Vehicle settings
-            vehicle_mass = 22
-            specific_impulse = 2500.0
-            minimum_mars_distance = 5.0E7
-            # Time since 'departure from Earth CoM' at which propagation starts (and similar
-            # for arrival time)
-            buffer_time = buffer_time_days * constants.JULIAN_DAY
-            ###########################################################################
-            # CREATE ENVIRONMENT ######################################################
-            ###########################################################################
-
-            # Define settings for celestial bodies
-            bodies_to_create = ['Earth',
-                                'Mars',
-                                'Sun']
-            # Define coordinate system
-            global_frame_origin = 'SSB'
-            global_frame_orientation = 'ECLIPJ2000'
-            # Create body settings
-            body_settings = environment_setup.get_default_body_settings(bodies_to_create,
-                                                                        global_frame_origin,
-                                                                        global_frame_orientation)
-            # Create bodies
-            bodies = environment_setup.create_system_of_bodies(body_settings)
-
-            # Create vehicle object and add it to the existing system of bodies
-            bodies.create_empty_body('Vehicle')
-            bodies.get_body('Vehicle').mass = vehicle_mass
-
-            # Adding excess velocity
-            vinf = [[4000], [0], [0]]
 
             current_low_thrust_problem = LowThrustProblem_SO(bodies,
                                                              specific_impulse,
@@ -266,12 +263,15 @@ if compute:
                             convergence_message = '\nEvolution converged at generation %i\n\n' % (converged_generation)
                             break
 
+                    # delta_v[i, j] = fitness_dict[list(fitness_dict)[-1]][0]
+                    trajectory_parameters_global[i, j] = population_dict[list(population_dict)[-1]]
+
                     compliance_dict = dict()
 
                     pop_aux = list(population_dict.keys())[-100:]
 
-                    for i in pop_aux:
-                        trajectory_parameters = population_dict[i]
+                    for pop in pop_aux:
+                        trajectory_parameters = population_dict[pop]
                         initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters, buffer_time)
 
                         current_low_thrust_problem = LowThrustProblem_SO(bodies,
@@ -284,15 +284,15 @@ if compute:
                                                                          constraint_bounds,
                                                                          True)
 
-                        fitness = current_low_thrust_problem.fitness_SO(trajectory_parameters)
-
-                        if fitness[2] == 0:
-                            compliance_dict[i] = fitness
+                        fitness = current_low_thrust_problem.fitness_MO(trajectory_parameters)
+                        delta_v[i, j] = fitness[0]
+                        if fitness[1] == 0:
+                            compliance_dict[pop] = fitness
 
                     print(convergence_message)
 
-                    datadir = '/OptimizationOutput/Exercise_%s_Revs_%i_Seed_%i_Algorithm_%s' \
-                              % (exercise, N_revs, seed, current_algorithm)
+                    datadir = '/OptimizationOutput/Exercise_%s_Date_%s_TOF_%s_Revs_%i_Seed_%i_Algorithm_%s' \
+                              % (exercise, i, j, N_revs, seed, current_algorithm)
 
                     output_path = current_dir + datadir
                     save2txt(population_dict, 'population.dat', output_path)
@@ -300,29 +300,37 @@ if compute:
                     if len(list(compliance_dict.keys())) != 0: save2txt(compliance_dict, 'compliance.dat', output_path)
                     save2txt(d_dict, 'd.dat', output_path)
 
-            ###########################################################################
-            # WRITE RESULTS FOR SEMI-ANALYTICAL METHOD ################################
-            ###########################################################################
-
-            # Create problem without propagating
-            hodographic_shaping_object = Util.create_hodographic_trajectory(trajectory_parameters,
-                                                                                bodies,vinf)
-
-            delta_v[i, j] = hodographic_shaping_object.delta_v_per_leg[0]
-
             j +=1
         i += 1
     try:
-        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/HodographicOptimization/delta_v.pickle",
+        datadir = '/OptimizationOutput/delta_v_%s.pickle' \
+                  % (exercise)
+        output_path = current_dir + datadir
+        with open(output_path,
                   "wb") as f:
             pickle.dump(delta_v, f, protocol=pickle.HIGHEST_PROTOCOL)
+        datadir = '/OptimizationOutput/trajectory_parameters_%s.pickle' \
+                  % (exercise)
+        output_path = current_dir + datadir
+        with open(output_path,
+                  "wb") as f:
+            pickle.dump(trajectory_parameters_global, f, protocol=pickle.HIGHEST_PROTOCOL)
     except Exception as ex:
         print("Error during pickling object (Possibly unsupported):", ex)
 else:
     try:
-        with open("C:/Users/hecto/Desktop/TU Delft/Thesis/SimulationOutput/HodographicOptimization/delta_v.pickle",
+        datadir = '/OptimizationOutput/delta_v_%s.pickle' \
+                  % (exercise)
+        output_path = current_dir + datadir
+        with open(output_path,
                   "rb") as f:
             delta_v = pickle.load(f)
+        datadir = '/OptimizationOutput/trajectory_parameters_%s.pickle' \
+                  % (exercise)
+        output_path = current_dir + datadir
+        with open(output_path,
+                  "rb") as f:
+            trajectory_parameters_global = pickle.load(f)
     except Exception as ex:
         print("Error during pickling object (Possibly unsupported):", ex)
 
@@ -331,6 +339,17 @@ if write_results_to_file:
     output_path = current_dir + '/SimulationOutput/HodographicOptimization/'
 else:
     output_path = None
+
+###########################################################################
+# WRITE RESULTS FOR SEMI-ANALYTICAL METHOD ################################
+###########################################################################
+
+delta_v = delta_v.transpose()/1000
+
+ind = np.unravel_index(np.argmin(delta_v[:, :], axis=None), delta_v[:, :].shape)
+
+hodographic_shaping_object = Util.create_hodographic_trajectory(trajectory_parameters_global[ind[1], ind[0]],
+                                                                                bodies,vinf)
 
 # Retrieves analytical results and write them to a file
 states = Util.get_hodographic_trajectory(hodographic_shaping_object,
@@ -354,6 +373,10 @@ mars_states_from_spice = {
 # Convert the dictionary to a multi-dimensional array
 mars_array = result2array(mars_states_from_spice)
 
+plt.rc('font', size=9)  # controls default text size
+plt.rc('font', family='serif')
+# plt.rc('text', usetex=True)
+
 fig_width_pt = 478 * 1
 
 inches_per_pt = 1 / 72.27
@@ -364,17 +387,17 @@ width = fig_width_pt * inches_per_pt
 
 height = width * golden_ratio
 
-delta_v[:, :] = delta_v[:, :].transpose()
-
 departure_date_list = [time_conversion.julian_day_to_calendar_date(epoch + constants.JULIAN_DAY_ON_J2000) for epoch in
                        initial_time_list]
 
-ind = np.unravel_index(np.argmin(delta_v[:, :], axis=None), delta_v[:, :].shape)
 fig, ax = plt.subplots(figsize=(width, height))
-c1 = ax.pcolormesh(departure_date_list, time_of_flight_list, delta_v[:, :], cmap='coolwarm', vmax=50000)
+c1 = ax.pcolormesh(departure_date_list, time_of_flight_list, delta_v[:, :], cmap='coolwarm', vmax=20)
 c2 = ax.scatter(departure_date_list[ind[1]], time_of_flight_list[ind[0]], color='tab:green')
-fig.colorbar(c1, ax=ax)
-plt.title("Without excess velocity")
+fig.colorbar(c1, ax=ax, label='Delta-V [km/s]')
+ax.set_xlabel('Date [yyyy-mm]')
+ax.set_ylabel('TOF [days]')
+fig.tight_layout()
+
 
 plt.figure(figsize=(width, height))
 ax = plt.axes(projection='3d')
@@ -390,42 +413,50 @@ ax.yaxis.labelpad = 20
 ax.set_zlabel('z [m]')
 ax.zaxis.labelpad = 20
 
-
 ax.legend(fontsize='small')
 #plt.grid(True)
 #plt.tight_layout()
 # plt.savefig("hodographic-transfer.png")
 
-print('Minimum Delta-V is', np.min(delta_v[:, :]), "m/s")
+print('Minimum Delta-V:', np.min(delta_v[:, :]), "m/s")
 
-print('Initial date for minimum Delta-V is ', departure_date_list[ind[1]], ' and the TOF is ', time_of_flight_list[ind[0]])
+print('Initial date for minimum Delta-V:', departure_date_list[ind[1]], ' and TOF:', time_of_flight_list[ind[0]])
 
-C3 = (np.linalg.norm(states_list[0,4:7]-earth_array[0,4:7])/1000)**2
+# C3 = (np.linalg.norm(states_list[0,4:7]-earth_array[0,4:7])/1000)**2
+#
+# print("The initial C3 is", C3, "km^2/s^2")
 
-print("The initial C3 is", C3, "km^2/s^2")
+# initial_dist = np.linalg.norm(states_list[0,1:4]-earth_array[0,1:4])
+#
+# print("The initial distance to Earth is", initial_dist, "m")
 
-initial_dist = np.linalg.norm(states_list[0,1:4]-earth_array[0,1:4])
-
-print("The initial distance to Earth is", initial_dist, "m")
-
-final_dist = np.linalg.norm(states_list[-1,1:4]-mars_array[-1,1:4])
-
-print("The final distance to Mars is", final_dist, "m")
+# final_dist = np.linalg.norm(states_list[-1,1:4]-mars_array[-1,1:4])
+#
+# print("The final distance to Mars is", final_dist, "m")
 
 delta_v_leg = hodographic_shaping_object.delta_v_per_leg
 
-print("The delta-V for the transfer is", delta_v_leg, "m/s")
+print("The delta-V for the transfer is", delta_v_leg[0], "m/s")
 
-delta_v_per_node = hodographic_shaping_object.delta_v_per_node
+# delta_v_per_node = hodographic_shaping_object.delta_v_per_node
+#
+# print("The delta-V applied in each node is", delta_v_per_node, "m/s")
 
-print("The delta-V applied in each node is", delta_v_per_node, "m/s")
+# final_dist_earth_mars = np.linalg.norm(earth_array[-1,1:4]-mars_array[-1,1:4])/1.495978707e11
+#
+# print("The final distance between Earth and Mars is ", final_dist_earth_mars, "AU")
 
-final_dist_earth_mars = np.linalg.norm(earth_array[-1,1:4]-mars_array[-1,1:4])/1.495978707e11
+# final_vel_vehicle_mars = np.linalg.norm(states_list[-1,1:4]-mars_array[-1,1:4])
+#
+# print("The final velocity between the vehicle and Mars is ", final_vel_vehicle_mars, "m/s")
 
-print("The final distance between Earth and Mars is ", final_dist_earth_mars, "AU")
+thrust = np.linalg.norm(list(hodographic_shaping_object.rsw_thrust_accelerations_along_trajectory(1000).values()),
+                                axis=1) * vehicle_mass
 
-final_vel_vehicle_mars = np.linalg.norm(states_list[-1,1:4]-mars_array[-1,1:4])
+print("The maximum thrust is ", max(thrust)*1000, "mN")
 
-print("The final velocity between the vehicle and Mars is ", final_vel_vehicle_mars, "m/s")
+for i in range(n):
+    ind = np.argmin(delta_v[:, i], axis=None)
+    print('For departure date: ', departure_date_list[i], ' and TOF: ', time_of_flight_list[ind], ', minimum Delta-V: ', delta_v[ind, i])
 
 plt.show()

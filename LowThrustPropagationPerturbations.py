@@ -172,7 +172,7 @@ specific_impulse = 2500
 minimum_mars_distance = 5.0E7
 # Time since 'departure from Earth CoM' at which propagation starts (and similar
 # for arrival time)
-time_buffer = 30.0 * constants.JULIAN_DAY
+time_buffer = 40.0 * constants.JULIAN_DAY
 
 # Time at which to start propagation
 initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters,
@@ -290,8 +290,8 @@ propagator_settings = Util.get_propagator_settings(
     termination_settings,
     dependent_variables_to_save,
     current_propagator=propagation_setup.propagator.cowell,
-    model_choice=17,
-    vinf=[[4000], [0], [0]])
+    model_choice=0,
+    vinf=[[0], [0], [0]])
 
 propagator_settings.integrator_settings = Util.get_integrator_settings(
     0, 7, 1, initial_propagation_time)
@@ -418,15 +418,15 @@ sc_acceleration = np.linalg.norm(
 plt.figure(figsize=(width, height))
 
 plt.plot(time_days, sc_thrust)
-plt.plot(time_days, sc_acceleration)
+# plt.plot(time_days, sc_acceleration)
 plt.xlim([min(time_days), max(time_days)])
 plt.xlabel('Time [days]')
-plt.ylabel('Acceleration [m/s^2]')
+plt.ylabel('Acceleration [N]')
 plt.legend(
     ['Hodographic thrust profile', 'Accelerations on SC'], loc='upper center', bbox_to_anchor=(0.5, 1.05),
     ncol=3, fancybox=True, shadow=True, fontsize='small')
 plt.grid(True)
-plt.yscale('log')
+# plt.yscale('log')
 plt.tight_layout()
 
 delta_v_total = 20*np.log(sc_mass[0]/sc_mass[-1])
