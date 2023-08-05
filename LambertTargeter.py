@@ -11,7 +11,7 @@ from matplotlib import rc
 import os
 import pickle
 
-compute = True
+compute = False
 
 # Load spice kernels.
 spice_interface.load_standard_kernels()

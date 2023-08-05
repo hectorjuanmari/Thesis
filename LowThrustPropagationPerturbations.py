@@ -172,7 +172,7 @@ specific_impulse = 2500
 minimum_mars_distance = 5.0E7
 # Time since 'departure from Earth CoM' at which propagation starts (and similar
 # for arrival time)
-time_buffer = 40.0 * constants.JULIAN_DAY
+time_buffer = 0.0 * constants.JULIAN_DAY
 
 # Time at which to start propagation
 initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters,
@@ -204,44 +204,44 @@ body_settings = environment_setup.get_default_body_settings(bodies_to_create,
                                                             global_frame_origin,
                                                             global_frame_orientation)
 
-effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
-                                    spice_interface.get_body_gravitational_parameter('Mercury')
-body_settings.get('Mercury').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
-    'Mercury', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
-effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
-                                    spice_interface.get_body_gravitational_parameter('Venus')
-body_settings.get('Venus').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
-    'Venus', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
-effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
-                                    spice_interface.get_body_gravitational_parameter('Earth')
-body_settings.get('Earth').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
-    'Earth', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
-effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
-                                    spice_interface.get_body_gravitational_parameter('Mars')
-body_settings.get('Mars').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
-    'Mars', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
-effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
-                                    spice_interface.get_body_gravitational_parameter('Jupiter')
-body_settings.get('Jupiter').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
-    'Jupiter', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
-effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
-                                    spice_interface.get_body_gravitational_parameter('Saturn')
-body_settings.get('Saturn').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
-    'Saturn', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
-effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
-                                    spice_interface.get_body_gravitational_parameter('Uranus')
-body_settings.get('Uranus').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
-    'Uranus_BARYCENTER', initial_propagation_time, effective_gravitational_parameter, 'Sun',
-    global_frame_orientation)
-effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
-                                    spice_interface.get_body_gravitational_parameter('Neptune')
-body_settings.get('Neptune').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
-    'Neptune_BARYCENTER', initial_propagation_time, effective_gravitational_parameter, 'Sun',
-    global_frame_orientation)
-effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Earth') + \
-                                    spice_interface.get_body_gravitational_parameter('Moon')
-body_settings.get('Moon').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
-    'Moon', initial_propagation_time, effective_gravitational_parameter, 'Earth', global_frame_orientation)
+# effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+#                                     spice_interface.get_body_gravitational_parameter('Mercury')
+# body_settings.get('Mercury').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+#     'Mercury', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+# effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+#                                     spice_interface.get_body_gravitational_parameter('Venus')
+# body_settings.get('Venus').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+#     'Venus', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+# effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+#                                     spice_interface.get_body_gravitational_parameter('Earth')
+# body_settings.get('Earth').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+#     'Earth', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+# effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+#                                     spice_interface.get_body_gravitational_parameter('Mars')
+# body_settings.get('Mars').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+#     'Mars', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+# effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+#                                     spice_interface.get_body_gravitational_parameter('Jupiter')
+# body_settings.get('Jupiter').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+#     'Jupiter', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+# effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+#                                     spice_interface.get_body_gravitational_parameter('Saturn')
+# body_settings.get('Saturn').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+#     'Saturn', initial_propagation_time, effective_gravitational_parameter, 'Sun', global_frame_orientation)
+# effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+#                                     spice_interface.get_body_gravitational_parameter('Uranus')
+# body_settings.get('Uranus').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+#     'Uranus_BARYCENTER', initial_propagation_time, effective_gravitational_parameter, 'Sun',
+#     global_frame_orientation)
+# effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Sun') + \
+#                                     spice_interface.get_body_gravitational_parameter('Neptune')
+# body_settings.get('Neptune').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+#     'Neptune_BARYCENTER', initial_propagation_time, effective_gravitational_parameter, 'Sun',
+#     global_frame_orientation)
+# effective_gravitational_parameter = spice_interface.get_body_gravitational_parameter('Earth') + \
+#                                     spice_interface.get_body_gravitational_parameter('Moon')
+# body_settings.get('Moon').ephemeris_settings = environment_setup.ephemeris.keplerian_from_spice(
+#     'Moon', initial_propagation_time, effective_gravitational_parameter, 'Earth', global_frame_orientation)
 
 # Create bodies
 bodies = environment_setup.create_system_of_bodies(body_settings)
@@ -291,7 +291,7 @@ propagator_settings = Util.get_propagator_settings(
     dependent_variables_to_save,
     current_propagator=propagation_setup.propagator.cowell,
     model_choice=0,
-    vinf=[[0], [0], [0]])
+    vinf=[[4000], [0], [0]])
 
 propagator_settings.integrator_settings = Util.get_integrator_settings(
     0, 7, 1, initial_propagation_time)
@@ -303,7 +303,6 @@ benchmark_output_path = current_dir + '/SimulationOutput/benchmarks/' if write_r
 
 ### OUTPUT OF THE SIMULATION ###
 # Retrieve propagated state and dependent variables
-# NOTE TO STUDENTS, the following retrieve the propagated states, converted to Cartesian states
 state_history = dynamics_simulator.state_history
 dependent_variable_history = dynamics_simulator.dependent_variable_history
 
@@ -333,6 +332,14 @@ dependent_var = result2array(dependent_variable_history)
 time = dependent_var[:,0]
 time_days = (time-time[0])/constants.JULIAN_DAY
 
+# Retrieve the Earth trajectory over vehicle propagation epochs from spice
+earth_states_from_spice = {
+    epoch:bodies.get_body('Earth').state_in_base_frame_from_ephemeris(epoch)
+    for epoch in list(state_history.keys())
+}
+# Convert the dictionary to a multi-dimensional array
+earth_array = result2array(earth_states_from_spice)
+
 plt.rc('font', size=9)  # controls default text size
 plt.rc('font', family='serif')
 # plt.rc('text', usetex=True)
@@ -350,9 +357,11 @@ height = width * golden_ratio
 plt.figure(figsize=(width, height))
 ax = plt.axes(projection='3d')
 
+
 ax.plot3D(hodographic_state_history_list[:,1], hodographic_state_history_list[:,2], hodographic_state_history_list[:,3], label='Hodograph', linewidth=1.5, color='tab:red')
 ax.plot3D(propagation_state_history_list[:,1], propagation_state_history_list[:,2], propagation_state_history_list[:,3], label='Vehicle', linewidth=1.5, color='tab:blue')
 ax.plot3D(dependent_var[:,4], dependent_var[:,5], dependent_var[:,6], label='Earth', linewidth=0.8, color='tab:green')
+# ax.plot3D(earth_array[:,1], earth_array[:,2], earth_array[:,3], label='Earth', linewidth=0.8, color='tab:purple')
 ax.plot3D(dependent_var[:,7], dependent_var[:,8], dependent_var[:,9], label='Mars', linewidth=0.8, color='tab:orange')
 
 ax.set_xlabel('x [m]')

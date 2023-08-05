@@ -202,7 +202,7 @@ class LowThrustProblem_SO:
 
         penalty_function = Util.get_penalty_function(constraints, self.constraint_bounds)
 
-        weight = 0.1
+        weight = 1000
 
         return np.array([dV_LT + weight * penalty_function])
 
