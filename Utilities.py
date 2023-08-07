@@ -1501,7 +1501,7 @@ def compare_models(first_model: dict,
 
 def get_penalty_function(constraints, bounds):
     p = 0
-    blow_up = 1e2
+    blow_up = 1e1
     for k in range(len(constraints)):
         g_k = constraints[k]-bounds[0, k]
         g_lim = bounds[1, k] - bounds[0, k]

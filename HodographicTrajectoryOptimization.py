@@ -88,10 +88,14 @@ AU = 1.495978707e11
 # '12' - n = 2, (2028, 11, 20) - (2028, 12, 1), m = 2, 320 - 340, N_revs = 0, vinf = 4000, seed = 42, weight = 0
 # '14' - n = 20, (2028, 10, 15) - (2028, 2, 1), m = 20, 150 - 550, N_revs = 0, vinf = 4000, seed = 42, weight = 1000, blowup=1e4, new min. DeltaV
 # '15' - n = 20, (2028, 10, 15) - (2028, 2, 1), m = 20, 150 - 550, N_revs = 0, vinf = 4000, seed = 42, weight = 1000, blowup=1e2, new min. DeltaV
-# '16' - n = 20, (2028, 10, 15) - (2028, 2, 1), m = 20, 150 - 550, N_revs = 0, vinf = 4000, seed = 221018, weight = 1000, blowup=1e2, new min. DeltaV
+# '16' - n = 20, (2028, 10, 15) - (2028, 2, 1), m = 20, 150 - 550, N_revs = 0, vinf = 4000, seed = 42, weight = 1000, blowup=1e1, new min. DeltaV, max_thrust matrix added
+# '17' - n = 20, (2028, 10, 15) - (2028, 2, 1), m = 20, 150 - 550, N_revs = 0, vinf = 4000, seed = 42, weight = 0, blowup=1e1, new min. DeltaV, max_thrust matrix added
+# '18' - n = 20, (2028, 10, 15) - (2028, 2, 1), m = 20, 150 - 550, N_revs = 0, vinf = 4000, seed = 42, weight = 0, blowup=1e1, new min. DeltaV, max_thrust matrix added, Max. Thrust optimized
+# '19' - n = 20, (2028, 10, 15) - (2028, 2, 1), m = 20, 150 - 550, N_revs = 0, vinf = 4000, seed = 42, weight = 0, blowup=1e1, new min. DeltaV, max_thrust matrix added, Average Thrust optimized
+# '20' - n = 20, (2028, 10, 15) - (2028, 2, 1), m = 20, 150 - 550, N_revs = 0, vinf = 4000, seed = 221018, weight = 0, blowup=1e1, new min. DeltaV, max_thrust matrix added, Average Thrust in max_thrust
 
 
-exercise = '16'
+exercise = '18'
 N_revs = 0
 convergence_rate = 1.0  # IN PERCENTAGE! So this is 1%
 buffer_time_days = 15
@@ -132,6 +136,7 @@ constraint_bounds = np.vstack([constraint_bounds, ultimate_constraint_bounds])
 
 trajectory_parameters_global = np.zeros([n, m, 9])
 delta_v = np.zeros([n, m])
+max_thrust = np.zeros([n, m])
 
 compute = False
 write_results_to_file = True
@@ -210,7 +215,7 @@ if compute:
 
             seed_list = [666, 4444, 42, 221018, 300321]
 
-            seed_list = [42]
+            seed_list = [221018]
 
             for current_seed in seed_list:
 
@@ -296,21 +301,15 @@ if compute:
                     print(fitness_list[ind])
                     trajectory_parameters_global[i, j] = population_list[ind]
 
-                    current_low_thrust_problem = LowThrustProblem_SO(bodies,
-                                                                     specific_impulse,
-                                                                     minimum_mars_distance,
-                                                                     time_buffer,
-                                                                     vehicle_mass,
-                                                                     vinf,
-                                                                     decision_variable_range,
-                                                                     constraint_bounds,
-                                                                     True)
+                    hodographic_shaping = Util.create_hodographic_trajectory(trajectory_parameters_global[i, j],
+                                                                             bodies, vinf)
 
-                    fitness = current_low_thrust_problem.fitness_MO(trajectory_parameters_global[i, j])
+                    delta_v[i, j] = hodographic_shaping.delta_v_per_leg[0]
 
-                    print(fitness[0])
-
-                    delta_v[i, j] = fitness[0]
+                    thrust = np.linalg.norm(
+                        list(hodographic_shaping.rsw_thrust_accelerations_along_trajectory(100).values()),
+                        axis=1) * vehicle_mass
+                    max_thrust[i, j] = np.max(thrust)
 
                     compliance_dict = dict()
 
@@ -355,6 +354,12 @@ if compute:
         with open(output_path,
                   "wb") as f:
             pickle.dump(delta_v, f, protocol=pickle.HIGHEST_PROTOCOL)
+        datadir = '/OptimizationOutput/max_thrust_%s.pickle' \
+                  % (exercise)
+        output_path = current_dir + datadir
+        with open(output_path,
+                  "wb") as f:
+            pickle.dump(max_thrust, f, protocol=pickle.HIGHEST_PROTOCOL)
         datadir = '/OptimizationOutput/trajectory_parameters_%s.pickle' \
                   % (exercise)
         output_path = current_dir + datadir
@@ -371,6 +376,12 @@ else:
         with open(output_path,
                   "rb") as f:
             delta_v = pickle.load(f)
+        datadir = '/OptimizationOutput/max_thrust_%s.pickle' \
+                  % (exercise)
+        output_path = current_dir + datadir
+        with open(output_path,
+                  "rb") as f:
+            max_thrust = pickle.load(f)
         datadir = '/OptimizationOutput/trajectory_parameters_%s.pickle' \
                   % (exercise)
         output_path = current_dir + datadir
@@ -392,7 +403,9 @@ else:
 
 delta_v = delta_v.transpose()/1000
 
-ind = np.unravel_index(np.argmin(delta_v[:, :], axis=None), delta_v[:, :].shape)
+max_thrust = max_thrust.transpose()*1000
+
+ind = np.unravel_index(np.argmin(delta_v, axis=None), delta_v.shape)
 
 trajectory_parameters_optimum = trajectory_parameters_global[ind[1], ind[0]]
 
@@ -439,9 +452,17 @@ departure_date_list = [time_conversion.julian_day_to_calendar_date(epoch + const
                        initial_time_list]
 
 fig, ax = plt.subplots(figsize=(width, height))
-c1 = ax.pcolormesh(departure_date_list, time_of_flight_list, delta_v[:, :], cmap='coolwarm', vmax=12)
+c1 = ax.pcolormesh(departure_date_list, time_of_flight_list, delta_v, cmap='coolwarm', vmax=20)
 c2 = ax.scatter(departure_date_list[ind[1]], time_of_flight_list[ind[0]], color='tab:green')
 fig.colorbar(c1, ax=ax, label='Delta-V [km/s]')
+ax.set_xlabel('Date [yyyy-mm]')
+ax.set_ylabel('TOF [days]')
+fig.tight_layout()
+
+fig, ax = plt.subplots(figsize=(width, height))
+c1 = ax.pcolormesh(departure_date_list, time_of_flight_list, max_thrust, cmap='coolwarm', vmax = 50)
+c2 = ax.scatter(departure_date_list[ind[1]], time_of_flight_list[ind[0]], color='tab:green')
+fig.colorbar(c1, ax=ax, label='Max. Thrust [mN]')
 ax.set_xlabel('Date [yyyy-mm]')
 ax.set_ylabel('TOF [days]')
 fig.tight_layout()
@@ -466,7 +487,8 @@ ax.legend(fontsize='small')
 #plt.tight_layout()
 # plt.savefig("hodographic-transfer.png")
 
-print('Minimum Delta-V:', np.min(delta_v[:, :]), "km/s")
+print('Minimum Delta-V:', np.min(delta_v), "km/s")
+print('Minimum Max. Thrust:', np.min(max_thrust), "mN")
 
 print('Initial date for minimum Delta-V:', departure_date_list[ind[1]], ' and TOF:', time_of_flight_list[ind[0]])
 print('Initial date for minimum Delta-V:', time_conversion.julian_day_to_calendar_date(trajectory_parameters_optimum[0] + constants.JULIAN_DAY_ON_J2000), ' and TOF:', trajectory_parameters_optimum[1])
@@ -575,8 +597,11 @@ for i in range(n):
     sc_mass = propagation_state_history_list[:, 7]
     delta_v_total = 20 * np.log(sc_mass[0] / sc_mass[-1])
 
-    print('For departure date: ', departure_date_list[i], ' and TOF: ', time_of_flight_list[ind], ', minimum Delta-V (Hodographic): ', delta_v[ind, i], ', minimum Delta-V (propagation): ', delta_v_total)
+    print('For departure date: ', departure_date_list[i], ' and TOF: ', time_of_flight_list[ind], ', min. Delta-V (Hodographic): ', delta_v[ind, i], ', min. Delta-V (propagation): ', delta_v_total, 'min. Max. Thrust:', max_thrust[ind, i])
 
+###########################################################################
+# MIN. DELTA-V PROPAGATION ################################################
+###########################################################################
 
 # Time at which to start propagation
 initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters_optimum,
@@ -651,10 +676,10 @@ plt.ylabel('SC Mass [kg]')
 plt.grid(True)
 plt.tight_layout()
 
-sc_thrust = dependent_var[:, 11] * sc_mass
+sc_thrust = dependent_var[:, 11] * sc_mass * 1000
 sc_acceleration = np.linalg.norm(
     dependent_var[:, 12:15] - dependent_var[:, 15:18] - dependent_var[:, 18:21],
-    axis=1) * sc_mass
+    axis=1) * sc_mass * 1000
 
 plt.figure(figsize=(width, height))
 
@@ -662,7 +687,126 @@ plt.plot(time_days, sc_thrust)
 # plt.plot(time_days, sc_acceleration)
 plt.xlim([min(time_days), max(time_days)])
 plt.xlabel('Time [days]')
-plt.ylabel('Acceleration [N]')
+plt.ylabel('Acceleration [mN]')
+plt.legend(
+    ['Hodographic thrust profile', 'Accelerations on SC'], loc='upper center', bbox_to_anchor=(0.5, 1.05),
+    ncol=3, fancybox=True, shadow=True, fontsize='small')
+plt.grid(True)
+# plt.yscale('log')
+plt.tight_layout()
+
+delta_v_total = 20*np.log(sc_mass[0]/sc_mass[-1])
+
+print('The total delta-V for this maneuver is', delta_v_total, 'km/s')
+
+max_acc = max(dependent_var[:,11]*sc_mass)*1000
+
+print('The maximum thrust force is', max_acc, 'mN')
+
+###########################################################################
+# MIN. MAX. THRUST PROPAGATION ############################################
+###########################################################################
+
+ind = np.unravel_index(np.argmin(max_thrust, axis=None), max_thrust.shape)
+
+trajectory_parameters_optimum = trajectory_parameters_global[ind[1], ind[0]]
+
+hodographic_shaping_object = Util.create_hodographic_trajectory(trajectory_parameters_optimum,
+                                                                                bodies,vinf)
+
+# Retrieves analytical results and write them to a file
+hodographic_states = Util.get_hodographic_trajectory(hodographic_shaping_object,
+                                current_dir)
+
+hodographic_states_list = result2array(hodographic_states)
+
+# Time at which to start propagation
+initial_propagation_time = Util.get_trajectory_initial_time(trajectory_parameters_optimum,
+                                                            time_buffer)
+# Retrieve termination settings
+termination_settings = Util.get_termination_settings(trajectory_parameters_optimum,
+                                                     minimum_mars_distance,
+                                                     time_buffer)
+# Retrieve dependent variables to save
+dependent_variables_to_save = Util.get_dependent_variable_save_settings()
+# Check whether there is any
+are_dependent_variables_to_save = False if not dependent_variables_to_save else True
+
+propagator_settings = Util.get_propagator_settings(
+    trajectory_parameters_optimum,
+    bodies,
+    initial_propagation_time,
+    vehicle_mass,
+    termination_settings,
+    dependent_variables_to_save,
+    current_propagator=propagation_setup.propagator.cowell,
+    model_choice=0,
+    vinf=vinf)
+
+propagator_settings.integrator_settings = Util.get_integrator_settings(
+    0, 7, 1, initial_propagation_time)
+# Propagate dynamics
+dynamics_simulator = numerical_simulation.create_dynamics_simulator(
+    bodies, propagator_settings)
+
+benchmark_output_path = current_dir + '/SimulationOutput/OptimumTrajectory/' if write_results_to_file else None
+
+### OUTPUT OF THE SIMULATION ###
+# Retrieve propagated state and dependent variables
+state_history = dynamics_simulator.state_history
+dependent_variable_history = dynamics_simulator.dependent_variable_history
+
+# Save results to a dictionary
+simulation_results = [state_history, dependent_variable_history]
+
+propagation_state_history_list = result2array(state_history)
+dependent_var = result2array(dependent_variable_history)
+time = dependent_var[:,0]
+time_days = (time-time[0])/constants.JULIAN_DAY
+
+plt.figure(figsize=(width, height))
+ax = plt.axes(projection='3d')
+
+ax.plot3D(hodographic_states_list[:,1], hodographic_states_list[:,2], hodographic_states_list[:,3], label='Hodograph', linewidth=1.5, color='tab:red')
+ax.plot3D(propagation_state_history_list[:,1], propagation_state_history_list[:,2], propagation_state_history_list[:,3], label='Vehicle', linewidth=1.5, color='tab:blue')
+ax.plot3D(earth_array[:,1], earth_array[:,2], earth_array[:,3], label='Earth', linewidth=0.8, color='tab:green')
+ax.plot3D(mars_array[:,1], mars_array[:,2], mars_array[:,3], label='Mars', linewidth=0.8, color='tab:orange')
+
+ax.set_xlabel('x [m]')
+ax.xaxis.labelpad = 20
+ax.set_ylabel('y [m]')
+ax.yaxis.labelpad = 20
+ax.set_zlabel('z [m]')
+ax.zaxis.labelpad = 20
+ax.legend(fontsize='small')
+plt.grid(True)
+
+sc_mass = propagation_state_history_list[:,7]
+
+plt.figure(figsize=(width, height))
+
+plt.plot(time_days, sc_mass)
+
+plt.xlim([min(time_days), max(time_days)])
+plt.xlabel('Time [days]')
+plt.ylabel('SC Mass [kg]')
+plt.grid(True)
+plt.tight_layout()
+
+sc_thrust = dependent_var[:, 11] * sc_mass * 1000
+sc_acceleration = np.linalg.norm(
+    dependent_var[:, 12:15] - dependent_var[:, 15:18] - dependent_var[:, 18:21],
+    axis=1) * sc_mass * 1000
+len_prop = len(dependent_var[:,0])
+sc_acceleration = np.linalg.norm(list(hodographic_shaping_object.rsw_thrust_accelerations_along_trajectory(len_prop).values()),axis=1)*vehicle_mass*1000
+
+plt.figure(figsize=(width, height))
+
+plt.plot(time_days, sc_thrust)
+# plt.plot(time_days, sc_acceleration)
+plt.xlim([min(time_days), max(time_days)])
+plt.xlabel('Time [days]')
+plt.ylabel('Acceleration [mN]')
 plt.legend(
     ['Hodographic thrust profile', 'Accelerations on SC'], loc='upper center', bbox_to_anchor=(0.5, 1.05),
     ncol=3, fancybox=True, shadow=True, fontsize='small')
